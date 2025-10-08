@@ -14,12 +14,19 @@ from utils import logger
 # 导入必要的模块
 from home_assistant import hass_manager
 from qwen_llm_model import qwen_llm_manager
-from config import OUTPUT_DIR
+from config import OUTPUT_DIR, HA_URL, HEADERS
+from command_parser import CommandParser
 
 class HomeAssistantLLMController:
     """
     Home Assistant与大模型交互控制器，负责处理Home Assistant相关的大模型控制逻辑
     """
+    
+    def __init__(self):
+        # 初始化命令解析器，传入必要的参数
+        self.command_parser = CommandParser(hass_manager.entity_data, HA_URL, HEADERS)
+        # 更新命令解析器中的实体数据
+        self.command_parser.update_entity_data(hass_manager.entity_data)
     
     def analyze_entities(self, sensor_data: Dict[str, Any], non_sensor_data: Dict[str, List[Dict[str, Any]]]) -> Tuple[str, Optional[str]]:
         """
@@ -147,7 +154,7 @@ class HomeAssistantLLMController:
         control_keywords = ['打开', '关闭', '开启', '关灯', '开灯']
         if any(keyword in message.lower() for keyword in control_keywords):
             # 尝试执行控制指令
-            control_result = hass_manager.parse_and_execute_command(message)
+            control_result = self.command_parser.parse_and_execute_command(message)
             
             # 如果执行成功，也可以用大模型生成更友好的回复
             messages = [
@@ -191,3 +198,6 @@ class HomeAssistantLLMController:
 # 创建全局实例供其他模块使用
 hass_llm_controller = HomeAssistantLLMController()
 logger.info("全局实例 hass_llm_controller 已创建")
+
+# 更新命令解析器中的实体数据
+hass_llm_controller.command_parser.update_entity_data(hass_manager.entity_data)

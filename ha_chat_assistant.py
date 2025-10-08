@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # 导入模块化组件
 from source.home_assistant import hass_manager
-from source.qwen_llm_model import qwen_llm_manager
+from source.home_assistant_llm_controller import hass_llm_controller
 from source.qwen_speech_model import qwen_speech_manager
 
 # 设备控制选项卡相关函数
@@ -298,14 +298,14 @@ def analyze_all_entities() -> gr.Textbox:
         # 更新实体数据
         hass_manager.update_entity_data()
         
-        # 分析实体
-        summary, analysis = qwen_llm_manager.analyze_entities(
+        # 分析实体（使用hass_llm_controller）
+        summary, analysis = hass_llm_controller.analyze_entities(
             hass_manager.entity_data.get("sensor_data"),
             hass_manager.entity_data.get("non_sensor_data"),
         )
         
-        # 保存结果
-        summary_file, analysis_file = qwen_llm_manager.save_analysis_results(summary, analysis)
+        # 保存结果（使用hass_llm_controller）
+        summary_file, analysis_file = hass_llm_controller.save_analysis_results(summary, analysis)
         
         if summary_file and analysis_file:
             return gr.Textbox(value=f"分析完成！\n实体摘要已保存到: {summary_file}\n分析报告已保存到: {analysis_file}")
@@ -422,8 +422,8 @@ def process_message_wrapper(message: str, history: List[Dict[str, str]]) -> List
         else:
             i += 1
 
-    # 调用process_message方法
-    response = qwen_llm_manager.process_message(message, old_format_history)
+    # 调用process_message方法（使用hass_llm_controller）
+    response = hass_llm_controller.process_home_assistant_message(message, old_format_history)
     
     # 添加新的用户消息和助手响应到历史记录
     updated_history = history.copy()

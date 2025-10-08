@@ -13,7 +13,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # 导入模块化组件
 from source.config import HA_URL, HEADERS
 from source.home_assistant import hass_manager
-from source.qwen_llm_model import qwen_llm_manager
+from source.home_assistant_llm_controller import hass_llm_controller
 
 # 从get_sensor.py合并的功能函数
 def get_entity_info(entity_id: str) -> Optional[Dict[str, Any]]:
@@ -113,7 +113,7 @@ def main() -> None:
             print(f"- {entity_type}: {len(entities)}个")
     
     # 运行分析
-    summary, analysis = qwen_llm_manager.analyze_entities(sensor_data, non_sensor_data)
+    summary, analysis = hass_llm_controller.analyze_entities(sensor_data, non_sensor_data)
     
     # 打印分析结果
     print("\n实体摘要:")
@@ -123,7 +123,7 @@ def main() -> None:
     print(analysis)
     
     # 保存结果
-    summary_file, analysis_file = qwen_llm_manager.save_analysis_results(summary, analysis)
+    summary_file, analysis_file = hass_llm_controller.save_analysis_results(summary, analysis)
     
     if summary_file and analysis_file and entity_excel_file:
         print(f"\n分析结果已保存到以下文件:")

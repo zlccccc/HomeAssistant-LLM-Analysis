@@ -1,19 +1,13 @@
-import os
 import requests
-from typing import List, Dict, Tuple, Optional
-
-# 添加当前目录到系统路径
 import os
 import sys
-if __file__ in sys.path:
-    sys.path.remove(__file__)
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 # 导入日志记录器
-from utils import logger
+from source.base_layer.utils import logger
 
 # 导入配置
-from config import QWEN_API_KEY, QWEN_API_BASE, QWEN_MODEL, OUTPUT_DIR
+from source.base_layer.config import QWEN_API_KEY, QWEN_API_BASE, QWEN_MODEL, OUTPUT_DIR
 
 class QwenLLMModelManager:
     """

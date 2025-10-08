@@ -3,19 +3,17 @@ import os
 from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime
 
-# 添加当前目录到系统路径
-if __file__ in sys.path:
-    sys.path.remove(__file__)
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# 移除不必要的sys.path.append
 
 # 导入日志记录器
-from utils import logger
+from source.base_layer.utils import logger
 
 # 导入必要的模块
-from home_assistant import hass_manager
-from qwen_llm_model import qwen_llm_manager
-from config import OUTPUT_DIR, HA_URL, HEADERS
-from command_parser import CommandParser
+from source.api_layer.home_assistant import hass_manager
+from source.api_layer.qwen_llm_model import qwen_llm_manager
+from source.base_layer.config import OUTPUT_DIR, HA_URL, HEADERS
+# 导入命令解析器
+from source.command_parser import CommandParser
 
 class HomeAssistantLLMController:
     """

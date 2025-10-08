@@ -1,22 +1,15 @@
 import os
 import sys
 import gradio as gr
-import tempfile
 from typing import Dict, List, Any, Tuple, Optional
 
-# 添加当前目录到系统路径
-if __file__ in sys.path:
-    sys.path.remove(__file__)
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'source'))
-
 # 导入日志工具
-from source.utils import logger
+from source.base_layer.utils import logger
 
 # 导入模块化组件
-from source.home_assistant import hass_manager
+from source.api_layer.home_assistant import hass_manager
 from source.home_assistant_llm_controller import hass_llm_controller
-from source.qwen_speech_model import qwen_speech_manager
+from source.api_layer.qwen_speech_model import qwen_speech_manager
 
 # 设备控制选项卡相关函数
 def update_entity_groups(device_type: str) -> Tuple[gr.Dropdown, gr.Dropdown, gr.Textbox]:

@@ -2,20 +2,18 @@ import os
 import sys
 import requests
 import json
-from typing import Dict, Any, Optional
 import base64
 import time
-
-# 导入工具模块中的日志记录器
-from utils import logger
+from typing import Dict, Any, Optional
 
 # 添加当前目录到系统路径
-if __file__ in sys.path:
-    sys.path.remove(__file__)
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 导入配置 - 使用与qwen_llm_model相同的配置参数
-from config import QWEN_API_KEY, QWEN_API_BASE, QWEN_MODEL, OUTPUT_DIR, QWEN_ASR_MODEL, QWEN_TTS_MODEL
+# 导入日志记录器
+from base_layer.utils import logger
+
+# 导入配置
+from base_layer.config import QWEN_API_KEY, QWEN_API_BASE, QWEN_MODEL, OUTPUT_DIR, QWEN_ASR_MODEL, QWEN_TTS_MODEL
 
 class QwenSpeechManager:
     """
@@ -38,8 +36,8 @@ class QwenSpeechManager:
             logger.info(f"创建输出目录: {self.output_dir}")
         
         # ASR和TTS的模型名称 - 从config.py获取
-        self.asr_model = QWEN_ASR_MODEL if hasattr(sys.modules['config'], 'QWEN_ASR_MODEL') else "qwen3-asr-flash"
-        self.tts_model = QWEN_TTS_MODEL if hasattr(sys.modules['config'], 'QWEN_TTS_MODEL') else "qwen3-tts-flash"
+        self.asr_model = QWEN_ASR_MODEL if QWEN_ASR_MODEL else "qwen3-asr-flash"
+        self.tts_model = QWEN_TTS_MODEL if QWEN_TTS_MODEL else "qwen3-tts-flash"
         
         # 状态跟踪
         self.last_asr_time = 0
@@ -366,4 +364,3 @@ class QwenSpeechManager:
 
 # 创建全局实例供其他模块使用
 qwen_speech_manager = QwenSpeechManager()
-logger.info("全局实例 qwen_speech_manager 已创建")

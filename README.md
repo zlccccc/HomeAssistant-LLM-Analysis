@@ -9,24 +9,24 @@
 ```mermaid
 graph TD
     subgraph 应用入口层
-        A[ha_chat_assistant.py<br>主应用入口与Gradio UI] -->|调用| G
-        C[analyze_entities.py<br>实体分析工具] -->|调用| G
+        A[ha_chat_assistant.py<br>主应用入口与Gradio UI]
+        C[analyze_entities.py<br>实体分析工具]
     end
   
     subgraph 业务逻辑层
-        G[home_assistant_llm_controller.py<br>控制器 - 协调API和业务逻辑] -->|调用| B6
-    end
-  
-    subgraph API对接层
-        B1[home_assistant.py<br>Home Assistant API对接]
-        B3[qwen_speech_model.py<br>语音API对接]
-        B5[qwen_llm_model.py<br>大模型API对接]
+        G[home_assistant_llm_controller.py<br>控制器 - 协调API和业务逻辑]
         B6[command_parser.py<br>命令解析器]
     end
   
+    subgraph API对接层
+        B1[api_layer/home_assistant.py<br>Home Assistant API对接]
+        B3[api_layer/qwen_speech_model.py<br>语音API对接]
+        B5[api_layer/qwen_llm_model.py<br>大模型API对接]
+    end
+  
     subgraph 基础服务层
-        B4[config.py<br>配置管理]
-        B7[utils.py<br>工具函数和日志系统]
+        B4[base_layer/config.py<br>配置管理]
+        B7[base_layer/utils.py<br>工具函数和日志系统]
     end
   
     subgraph 外部服务
@@ -35,10 +35,20 @@ graph TD
         F[Qwen Speech API]
     end
     
-    %% 调用关系
+    %% 调用关系 - 放在subgraph外部
+    A -->|调用| G
+    A -->|调用| B1
+    A -->|调用| B3
+    C -->|调用| G
+    C -->|调用| B1
+    C -->|调用| B4
+    G -->|调用| B6
     G -->|调用| B1
     G -->|调用| B5
     G -->|调用| B4
+    B1 -->|HTTP请求| D
+    B3 -->|HTTP请求| F
+    B5 -->|HTTP请求| E
     B1 -->|导入| B4
     B1 -->|导入| B7
     B5 -->|导入| B4
@@ -46,22 +56,15 @@ graph TD
     B3 -->|导入| B4
     B3 -->|导入| B7
     B6 -->|导入| B7
-    B1 -->|HTTP请求| D
-    B5 -->|HTTP请求| E
-    B3 -->|HTTP请求| F
-    A -->|调用| B1
-    A -->|调用| B3
-    C -->|调用| B1
-    C -->|调用| B4
     
     %% 样式设置
     style A fill:#f9d5e5,stroke:#333,stroke-width:1px
     style C fill:#f9d5e5,stroke:#333,stroke-width:1px
     style G fill:#a0e0ff,stroke:#333,stroke-width:1px
+    style B6 fill:#a0e0ff,stroke:#333,stroke-width:1px
     style B1 fill:#d0d0ff,stroke:#333,stroke-width:1px
     style B3 fill:#d0d0ff,stroke:#333,stroke-width:1px
     style B5 fill:#d0d0ff,stroke:#333,stroke-width:1px
-    style B6 fill:#d0d0ff,stroke:#333,stroke-width:1px
     style B4 fill:#d5f9e3,stroke:#333,stroke-width:1px
     style B7 fill:#d5f9e3,stroke:#333,stroke-width:1px
     style D fill:#d5e5f9,stroke:#333,stroke-width:1px
@@ -79,13 +82,13 @@ graph TD
 2. **业务逻辑层**
 
    - `home_assistant_llm_controller.py`: 核心控制器，协调API接口间的调用，处理实体分析、用户消息处理逻辑，并负责命令解析与执行
+   - `command_parser.py`: 命令解析器，负责解析和执行控制指令，实现基于正则表达式的指令匹配和设备控制，由控制器调用
 
 3. **API对接层**
 
    - `home_assistant.py`: Home Assistant API对接接口，负责与Home Assistant系统交互，获取实体数据和设备信息
    - `qwen_speech_model.py`: 语音服务API对接接口，负责语音识别(ASR)和语音合成(TTS)功能，支持多种音频播放方式
    - `qwen_llm_model.py`: 大模型服务API对接接口，封装了与Qwen大模型API的交互，支持OpenAI兼容格式
-   - `command_parser.py`: 命令解析器，负责解析和执行控制指令，实现基于正则表达式的指令匹配和设备控制，由控制器调用
 
 4. **基础服务层**
 
@@ -172,13 +175,18 @@ api/
 ├── ha_chat_assistant.py     # 主应用入口
 ├── analyze_entities.py      # 实体分析工具
 ├── source/                  # 源代码目录
-│   ├── config.py            # 配置文件
-│   ├── utils.py             # 工具函数和日志系统
-│   ├── home_assistant.py    # Home Assistant API对接
-│   ├── command_parser.py    # 命令解析器
+│   ├── __init__.py
+│   ├── api_layer/           # API对接层
+│   │   ├── __init__.py
+│   │   ├── home_assistant.py    # Home Assistant API对接
+│   │   ├── qwen_llm_model.py    # 大模型API对接
+│   │   └── qwen_speech_model.py # 语音API对接
+│   ├── base_layer/          # 基础服务层
+│   │   ├── __init__.py
+│   │   ├── config.py        # 配置文件
+│   │   └── utils.py         # 工具函数和日志系统
 │   ├── home_assistant_llm_controller.py  # 业务逻辑控制器
-│   ├── qwen_llm_model.py    # 大模型API对接
-│   └── qwen_speech_model.py # 语音API对接
+│   └── command_parser.py    # 命令解析器
 ├── logs/                    # 日志文件目录
 ├── output/                  # 输出文件目录
 └── images/                  # 图片资源目录

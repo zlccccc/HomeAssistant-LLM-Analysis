@@ -12,6 +12,9 @@ if __file__ in sys.path:
     sys.path.remove(__file__)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# 导入日志记录器
+from utils import logger
+
 # 导入配置和模型模块
 from config import HA_URL, HA_TOKEN, OUTPUT_DIR, HEADERS
 
@@ -26,7 +29,7 @@ class HomeAssistantManager:
         self.headers = HEADERS
         self.entity_data = {}
         self.current_entity_summary = ""
-        print("正在初始化Home Assistant数据...")
+        logger.info("正在初始化Home Assistant数据...")
         self.update_entity_data()
     
     def group_entities_by_name(self, entities: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
@@ -109,20 +112,20 @@ class HomeAssistantManager:
         try:
             response = requests.get(all_entities_url, headers=self.headers, timeout=15)
             if response.status_code == 401:
-                print("获取实体失败！状态码：401，原因：未授权访问")
-                print("\n可能的解决方案：")
-                print("1. 检查访问令牌是否正确 - 令牌格式应为以Bearer开头的长字符串")
-                print("2. 生成新的长生命周期访问令牌")
+                logger.error("获取实体失败！状态码：401，原因：未授权访问")
+                logger.error("\n可能的解决方案：")
+                logger.error("1. 检查访问令牌是否正确 - 令牌格式应为以Bearer开头的长字符串")
+                logger.error("2. 生成新的长生命周期访问令牌")
                 return None, None
             elif response.status_code != 200:
-                print(f"获取实体失败！状态码：{response.status_code}，原因：{response.text}")
+                logger.error(f"获取实体失败！状态码：{response.status_code}，原因：{response.text}")
                 return None, None
             all_entities = response.json()
         except requests.exceptions.ConnectionError:
-            print("连接异常！无法连接到Home Assistant服务器")
+            logger.error("连接异常！无法连接到Home Assistant服务器")
             return None, None
         except Exception as e:
-            print(f"请求异常！原因：{str(e)}")
+            logger.error(f"请求异常！原因：{str(e)}")
             return None, None
 
         # 分离sensor和非sensor实体
@@ -207,7 +210,7 @@ class HomeAssistantManager:
                 non_sensor_entities_by_type[entity_type].append(entity_info)
             except Exception as e:
                 # 忽略单个实体处理错误
-                print(f"警告：处理实体 {entity.get('entity_id', '未知')} 时出错: {str(e)}")
+                logger.warning(f"处理实体 {entity.get('entity_id', '未知')} 时出错: {str(e)}")
                 continue
 
         # 构建返回结果
@@ -234,7 +237,7 @@ class HomeAssistantManager:
         更新实体数据
         :return: 实体摘要信息
         """
-        print("正在更新Home Assistant实体数据...")
+        logger.info("正在更新Home Assistant实体数据...")
         sensor_data, non_sensor_data = self.get_and_classify_entities()
         
         # 存储实体数据
@@ -285,7 +288,7 @@ class HomeAssistantManager:
                             entity_summary.append(f"  - {entity.get('friendly_name', entity.get('entity_id', '未知'))} (状态: {entity.get('state', '未知')})")
         
         self.current_entity_summary = "\n".join(entity_summary)
-        print(f"实体数据更新完成, 总共 {len(entity_summary)} 条信息")
+        logger.info(f"实体数据更新完成, 总共 {len(entity_summary)} 条信息")
         return self.current_entity_summary
     
     def call_home_assistant_service(self, entity_id: str, service: str) -> str:
@@ -532,7 +535,7 @@ class HomeAssistantManager:
                         worksheet.column_dimensions[column_letter].width = adjusted_width
             return file_path
         except Exception as e:
-            print(f"导出Excel失败: {str(e)}")
+            logger.error(f"导出Excel失败: {str(e)}")
             return None
 
 # 创建全局的HomeAssistantManager实例

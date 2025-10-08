@@ -8,6 +8,9 @@ if __file__ in sys.path:
     sys.path.remove(__file__)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# 导入日志记录器
+from utils import logger
+
 # 导入必要的模块
 from home_assistant import hass_manager
 from qwen_llm_model import qwen_llm_manager
@@ -25,7 +28,7 @@ class HomeAssistantLLMController:
         :param non_sensor_data: 非传感器实体数据
         :return: (实体摘要, 分析结果)
         """
-        print("\n开始分析实体数据...")
+        logger.info("开始分析实体数据...")
         
         # 准备实体摘要信息
         entity_summary = []
@@ -69,7 +72,7 @@ class HomeAssistantLLMController:
                             entity_summary.append(f"  - {entity.get('friendly_name', entity.get('entity_id', '未知'))} (状态: {entity.get('state', '未知')})")
         
         entity_summary_text = "\n".join(entity_summary)
-        print("实体摘要信息准备完成")
+        logger.info("实体摘要信息准备完成")
 
         # 准备提示词
         prompt = f"""你是一个智能家居自动化专家，擅长分析Home Assistant实体并生成智能控制逻辑。
@@ -94,7 +97,7 @@ class HomeAssistantLLMController:
             {"role": "user", "content": prompt}
         ]
         
-        print("\n调用Qwen大模型进行分析...")
+        logger.info("\n调用Qwen大模型进行分析...")
         analysis_result = qwen_llm_manager.call_openai_api(messages)
         
         return entity_summary_text, analysis_result
@@ -130,7 +133,7 @@ class HomeAssistantLLMController:
             
             return summary_file, analysis_file
         except Exception as e:
-            print(f"保存结果失败: {str(e)}")
+            logger.error(f"保存结果失败: {str(e)}")
             return None, None
     
     def process_home_assistant_message(self, message: str, history: List[Tuple[str, str]]) -> str:
@@ -187,4 +190,4 @@ class HomeAssistantLLMController:
 
 # 创建全局实例供其他模块使用
 hass_llm_controller = HomeAssistantLLMController()
-print("全局实例 hass_llm_controller 已创建")
+logger.info("全局实例 hass_llm_controller 已创建")

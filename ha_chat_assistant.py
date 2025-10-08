@@ -8,6 +8,10 @@ from typing import Dict, List, Any, Tuple, Optional
 if __file__ in sys.path:
     sys.path.remove(__file__)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'source'))
+
+# 导入日志工具
+from source.utils import logger
 
 # 导入模块化组件
 from source.home_assistant import hass_manager
@@ -440,11 +444,11 @@ def process_message_wrapper(message: str, history: List[Dict[str, str]]) -> List
         # 调用语音合成服务，使用默认语音类型
         success = qwen_speech_manager.text_to_audio(response, output_file, voice="female")
         if success:
-            print(f"自动生成语音回复成功")
+            logger.info(f"自动生成语音回复成功")
         else:
-            print("语音合成失败")
+            logger.error("语音合成失败")
     except Exception as e:
-        print(f"自动播放语音时出错: {str(e)}")
+          logger.error(f"自动播放语音时出错: {str(e)}")
     
     return updated_history
 
@@ -473,7 +477,7 @@ def create_chat_tab():
         
         # 更新状态
         status = "正在进行语音识别..."
-        print(f"开始识别语音文件: {audio}")
+        logger.info(f"开始识别语音文件: {audio}")
         
         try:
             # 检查文件是否存在
@@ -504,7 +508,7 @@ def create_chat_tab():
                 return "", "语音识别失败：可能是API密钥配置问题或网络连接问题", chat_history
         except Exception as e:
             error_msg = f"语音识别出错: {str(e)}"
-            print(error_msg)
+            logger.error(error_msg)
             import traceback
             traceback.print_exc()
             return "", error_msg, chat_history
@@ -540,7 +544,7 @@ def create_gradio_interface():
     """
     创建Gradio界面
     """
-    print("正在创建Gradio界面...")
+    logger.info("正在创建Gradio界面...")
     
     # 创建标签页
     with gr.Blocks(title="智能家居助手") as interface:
@@ -570,7 +574,7 @@ def main(server_port=7860):
     try:
         # 创建并启动Gradio界面
         interface = create_gradio_interface()
-        print("Gradio界面创建完成")
+        logger.info("Gradio界面创建完成")
         
         # 启动界面
         interface.launch(
@@ -580,7 +584,7 @@ def main(server_port=7860):
             debug=True
         )
     except Exception as e:
-        print(f"程序运行出错: {str(e)}")
+        logger.error(f"程序运行出错: {str(e)}")
         import traceback
         traceback.print_exc()
 
@@ -589,6 +593,6 @@ if __name__ == "__main__":
     try:
         main(server_port=7860)
     except KeyboardInterrupt:
-        print("\n程序已停止")
+        logger.info("\n程序已停止")
     except Exception as e:
-        print(f"程序运行出错: {e}")
+          logger.error(f"程序运行出错: {e}")

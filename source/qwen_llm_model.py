@@ -1,8 +1,6 @@
 import os
 import requests
-import json
-from typing import List, Dict, Any, Tuple, Optional
-from datetime import datetime
+from typing import List, Dict, Tuple, Optional
 
 # 添加当前目录到系统路径
 import os
@@ -10,6 +8,9 @@ import sys
 if __file__ in sys.path:
     sys.path.remove(__file__)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# 导入日志记录器
+from utils import logger
 
 # 导入配置
 from config import QWEN_API_KEY, QWEN_API_BASE, QWEN_MODEL, OUTPUT_DIR
@@ -68,11 +69,11 @@ class QwenLLMModelManager:
                 return result["choices"][0]["message"]["content"]
             else:
                 error_msg = f"API调用失败: {response.status_code} {response.text}"
-                print(error_msg)
+                logger.error(error_msg)
                 return error_msg
         except Exception as e:
             error_msg = f"API调用异常: {str(e)}"
-            print(error_msg)
+            logger.error(error_msg)
             return error_msg
 
     def process_message(self, message: str, history: List[Tuple[str, str]]) -> str:
@@ -106,4 +107,4 @@ class QwenLLMModelManager:
 
 # 创建全局实例供其他模块使用
 qwen_llm_manager = QwenLLMModelManager()
-print("全局实例 qwen_llm_manager 已创建")
+logger.info("全局实例 qwen_llm_manager 已创建")

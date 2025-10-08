@@ -5,14 +5,9 @@ import json
 from typing import Dict, Any, Optional
 import base64
 import time
-import logging
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# 导入工具模块中的日志记录器
+from utils import logger
 
 # 添加当前目录到系统路径
 if __file__ in sys.path:

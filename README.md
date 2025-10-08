@@ -34,7 +34,7 @@ graph TD
         E[Qwen LLM API]
         F[Qwen Speech API]
     end
-    
+  
     %% 调用关系 - 放在subgraph外部
     A -->|调用| G
     A -->|调用| B1
@@ -56,7 +56,7 @@ graph TD
     B3 -->|导入| B4
     B3 -->|导入| B7
     B6 -->|导入| B7
-    
+  
     %% 样式设置
     style A fill:#f9d5e5,stroke:#333,stroke-width:1px
     style C fill:#f9d5e5,stroke:#333,stroke-width:1px
@@ -78,23 +78,19 @@ graph TD
 
    - `ha_chat_assistant.py`: 主应用入口，提供Gradio UI界面，包含设备控制、传感器数据查看和聊天对话等多个功能选项卡
    - `analyze_entities.py`: 实体分析工具，用于批量分析Home Assistant实体并生成详细报告
-
 2. **业务逻辑层**
 
    - `home_assistant_llm_controller.py`: 核心控制器，协调API接口间的调用，处理实体分析、用户消息处理逻辑，并负责命令解析与执行
    - `command_parser.py`: 命令解析器，负责解析和执行控制指令，实现基于正则表达式的指令匹配和设备控制，由控制器调用
-
 3. **API对接层**
 
    - `home_assistant.py`: Home Assistant API对接接口，负责与Home Assistant系统交互，获取实体数据和设备信息
    - `qwen_speech_model.py`: 语音服务API对接接口，负责语音识别(ASR)和语音合成(TTS)功能，支持多种音频播放方式
    - `qwen_llm_model.py`: 大模型服务API对接接口，封装了与Qwen大模型API的交互，支持OpenAI兼容格式
-
 4. **基础服务层**
 
    - `config.py`: 配置文件，存储所有API密钥、URL和配置参数
    - `utils.py`: 工具函数模块，提供日志系统配置和通用工具函数，支持UTF-8编码的多处理器日志记录
-
 5. **外部服务**
 
    - Home Assistant API: 提供实体数据获取和设备控制功能
@@ -104,26 +100,27 @@ graph TD
 ### 核心功能
 
 1. **实体管理**
+
    - 自动获取和分类Home Assistant实体
    - 支持按名称和位置分组显示实体
    - 提供实体数据导出为Excel功能
-
 2. **设备控制**
+
    - 可视化设备状态查看和控制
    - 支持通过文本指令控制设备
    - 支持批量控制同类型设备
-
 3. **语音交互**
+
    - 语音识别输入
    - 语音合成输出
    - 自动播放回复语音
-
 4. **智能对话**
+
    - 基于大模型的自然语言对话
    - 智能解析控制指令
    - 提供设备信息查询和状态汇报
-
 5. **实体分析**
+
    - 生成实体统计摘要
    - 大模型驱动的场景建议
    - 自动化配置示例生成
@@ -139,11 +136,13 @@ graph TD
 ### 依赖安装
 
 文本依赖：
+
 ```shell
 pip install requests openpyxl pandas gradio
 ```
 
 语音依赖：
+
 ```shell
 pip install pyaudio pygame playsound pydub
 ```
@@ -151,15 +150,17 @@ pip install pyaudio pygame playsound pydub
 ### 使用方法
 
 1. 配置设置
+
 ```shell
 cp source/config.py.sample source/config.py
 ```
 
 2. 编辑配置文件，填入API密钥
+
    - Home Assistant URL和访问令牌
    - Qwen API密钥和模型参数
-
 3. 运行应用
+
 ```shell
 # 运行实体分析工具
 python analyze_entities.py
@@ -210,13 +211,17 @@ api/
 ### 效果展示
 
 #### 主界面展示
+
 ![主界面](images/hello.png)
 
 #### 实体分析报告
+
 ![分析报告](images/analysis_latex.png)
 
 #### 实体数据导出(Excel格式)
+
 ![Excel数据](images/analysis_excel.png)
 
 #### 灯光控制示例
+
 ![灯光控制](images/openlight.png)

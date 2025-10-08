@@ -6,14 +6,11 @@ import base64
 import time
 from typing import Dict, Any, Optional
 
-# 添加当前目录到系统路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 # 导入日志记录器
-from base_layer.utils import logger
+from source.base_layer.utils import logger
 
 # 导入配置
-from base_layer.config import QWEN_API_KEY, QWEN_API_BASE, QWEN_MODEL, OUTPUT_DIR, QWEN_ASR_MODEL, QWEN_TTS_MODEL
+from source.base_layer.config import QWEN_API_KEY, QWEN_API_BASE, QWEN_MODEL, OUTPUT_DIR, QWEN_ASR_MODEL, QWEN_TTS_MODEL
 
 class QwenSpeechManager:
     """

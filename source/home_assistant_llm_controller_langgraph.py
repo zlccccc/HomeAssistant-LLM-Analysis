@@ -11,6 +11,9 @@ from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from pydantic import BaseModel
 
+from memu import MemuClient
+
+
 # 导入日志工具
 from source.base_layer.utils import logger
 
@@ -22,9 +25,14 @@ from source.api_layer.qwen_llm_model import qwen_llm_manager
 from source.api_layer.home_assistant import hass_manager
 from source.command_parser import CommandParser
 
+# 导入dotenv
+import dotenv
+dotenv.load_dotenv(".env")
+
 # 定义状态类型
 class State(BaseModel):
     messages: List[Dict[str, Any]] = []
+    memorized_messages: List[Dict[str, Any]] = []
     entity_data: Optional[Dict[str, Any]] = None
     response: str = ""
     parsed_command: Optional[Dict[str, Any]] = None
@@ -48,10 +56,45 @@ class HomeAssistantLLMControllerLangGraph:
         
         # 初始化LangGraph
         self.graph = self._build_graph()
-        self.memory = MemorySaver()
-        self.compiled_graph = self.graph.compile(checkpointer=self.memory)
+        self.memory = self._build_memory()
+        self.compiled_graph = self.graph.compile()
         
         logger.info("基于LangGraph的HomeAssistantLLMController已初始化")
+    
+    def _build_memory(self) -> MemorySaver:
+        """
+        构建记忆
+        """
+        if os.environ.get("USE_MEMORY_MESSAGES", "false") != "true":
+            return None
+        memory_client = MemuClient(
+            base_url="https://api.memu.so",
+            api_key=os.environ.get("MEMU_API_KEY", "")
+        )
+        return memory_client
+    
+    def _memory_messages(self, state: State) -> Dict[str, Any]:
+        """
+        记忆消息
+        """
+        if self.memory is None:
+            return
+        
+        to_memorize_messages = [msg for msg in state.messages if msg not in state.memorized_messages]
+        
+        if to_memorize_messages:
+            self.memory.memorize_conversation(
+                conversation=to_memorize_messages,
+                user_id=os.environ.get("MEMU_USER_ID", "user001"), 
+                user_name=os.environ.get("MEMU_USER_NAME", "master"), 
+                agent_id=os.environ.get("MEMU_AGENT_ID", "homeassistant"), 
+                agent_name=os.environ.get("MEMU_AGENT_NAME", "Home Assistant")
+            )
+        
+        return {"memorized_messages": state.messages}
+
+        
+    
     
     def _build_graph(self) -> StateGraph:
         """
@@ -64,10 +107,12 @@ class HomeAssistantLLMControllerLangGraph:
         graph.add_node("check_for_command", self._check_for_command)
         graph.add_node("execute_command", self._execute_command)
         graph.add_node("generate_response", self._generate_response)
+        graph.add_node("memory_messages", self._memory_messages)
         
         # 添加边缘
         graph.set_entry_point("analyze_message")
-        graph.add_edge("analyze_message", "check_for_command")
+        graph.add_edge("analyze_message", "memory_messages")
+        graph.add_edge("memory_messages", "check_for_command")
         graph.add_conditional_edges(
             "check_for_command",
             self._should_execute_command,
@@ -167,7 +212,7 @@ class HomeAssistantLLMControllerLangGraph:
             response = state.execution_result
         else:
             # 构建系统提示
-            system_prompt = self._build_system_prompt(state.entity_data)
+            system_prompt = self._build_system_prompt(state.entity_data, state, user_message)
             
             to_invoke_messages = [{"role": "system", "content": system_prompt}, 
                                   *state.messages]
@@ -177,10 +222,23 @@ class HomeAssistantLLMControllerLangGraph:
         
         return {"response": response, "messages": state.messages + [{"role": "assistant", "content": response}]}
     
-    def _build_system_prompt(self, entity_data: Dict[str, Any]) -> str:
+    def _build_system_prompt(self, entity_data: Dict[str, Any], state: State, user_message: str) -> str:
         """
         构建系统提示，包含实体信息
         """
+        # 填充记忆
+        retrieved_prompt = ""
+        
+        if self.memory:
+            retrieved_info = self.memory.retrieve_default_categories(
+                user_id=os.environ.get("MEMU_USER_ID", "user001"),
+                agent_id=os.environ.get("MEMU_AGENT_ID", "homeassistant")
+            )
+        
+            for category in retrieved_info.categories:
+                if category.summary:
+                    retrieved_prompt += f"**{category.name}:** {category.summary}\n\n"
+        
         # 生成设备概览
         device_overview = self._generate_device_overview(entity_data)
         
@@ -189,6 +247,9 @@ class HomeAssistantLLMControllerLangGraph:
 
 当前可用设备概览：
 {device_overview}
+
+{'这里是和用户有关的记忆信息:' if retrieved_prompt else ''}
+{retrieved_prompt}
 
 请根据用户的问题或请求，提供有用的回答。如果你无法回答，请坦诚告知。
 对于设备控制命令，请使用提供的工具。

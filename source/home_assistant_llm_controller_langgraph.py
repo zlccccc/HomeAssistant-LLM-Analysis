@@ -5,10 +5,15 @@ from typing import Dict, List, Any, Tuple, Optional
 from datetime import datetime
 
 # 导入langgraph相关模块
+from langchain_mcp_adapters.client import MultiServerMCPClient
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
 from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from pydantic import BaseModel
 
 from memu import MemuClient
@@ -194,8 +199,16 @@ class HomeAssistantLLMControllerLangGraph:
             "execution_result": result,  # 直接使用字符串结果
             "entity_data": updated_entity_data
         }
+        
+    def _create_react_agent(self, tools):
+        llm_model = ChatOpenAI(model=os.getenv("QWEN_MODEL"),
+                  api_key=os.getenv("QWEN_API_KEY"),
+                  base_url=os.getenv("QWEN_API_BASE"))
+        agent = create_agent(llm_model, tools)
+        return agent
+        
     
-    def _generate_response(self, state: State) -> Dict[str, Any]:
+    async def _generate_response(self, state: State) -> Dict[str, Any]:
         """
         生成回复消息
         """
@@ -215,10 +228,36 @@ class HomeAssistantLLMControllerLangGraph:
             to_invoke_messages = [{"role": "system", "content": system_prompt}, 
                                   *state.messages]
             
-            # 调用大模型生成回复
-            response = qwen_llm_manager.call_openai_api(to_invoke_messages)
-        
-        return {"response": response, "messages": state.messages + [{"role": "assistant", "content": response}]}
+            ha_url = os.getenv("HA_URL", "http://localhost:8123")
+            ha_token = os.getenv("HA_TOKEN")
+            ha_mcp_endpoint = os.getenv("HA_MCP_ENDPOINT")
+
+            client = MultiServerMCPClient(
+                {
+                    "homeassistant": {
+                        "transport": "sse",
+                        "url": f"{ha_url}{ha_mcp_endpoint}",
+                        "headers": {
+                            "Authorization": f"Bearer {ha_token}",
+                            "Content-Type": "application/json"
+                        },
+                    }
+                }
+            )
+            tools = await client.get_tools()
+            agent = self._create_react_agent(tools)
+            response = await agent.ainvoke({"messages": to_invoke_messages})
+            print(f"agent.ainvoke: {response}")
+            formatted_msgs = []
+            for msg in response["messages"]:
+                if isinstance(msg, HumanMessage):
+                    formatted_msgs.append({"role": "user", "content": msg.content})
+                elif isinstance(msg, SystemMessage):
+                    formatted_msgs.append({"role": "system", "content": msg.content})
+                else:
+                    formatted_msgs.append({"role": "assistant", "content": msg.content})
+            response = response["messages"][-1].content # FIXME 会导致展示的信息不全
+        return {"response": response, "messages": formatted_msgs}
     
     def _build_system_prompt(self, entity_data: Dict[str, Any], state: State, user_message: str) -> str:
         """
@@ -291,7 +330,7 @@ class HomeAssistantLLMControllerLangGraph:
         
         return "\n".join(overview)
     
-    def process_home_assistant_message(self, message: str, history: List[Tuple[str, str]] = None) -> str:
+    async def process_home_assistant_message(self, message: str, history: List[Tuple[str, str]] = None) -> str:
         """
         处理Home Assistant相关消息
         :param message: 用户消息
@@ -318,7 +357,7 @@ class HomeAssistantLLMControllerLangGraph:
             
             # 运行图
             config = {"configurable": {"thread_id": "home_assistant_thread"}}
-            result = self.compiled_graph.invoke(
+            result = await self.compiled_graph.ainvoke(
                 {
                     "messages": messages,
                     "entity_data": entity_data

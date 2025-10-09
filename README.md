@@ -137,7 +137,7 @@ graph TD
 文本依赖：
 
 ```shell
-pip install requests openpyxl pandas gradio pydantic langgraph python-dotenv
+pip install requests openpyxl pandas gradio pydantic langgraph python-dotenv langchain-mcp-adapters
 ```
 
 语音依赖：

@@ -406,7 +406,7 @@ def create_sensor_data_tab():
         analyze_result
     return sensor_type, sensor_groups, sensor_list, sensor_info, analyze_btn, refresh_btn, analyze_result
 
-def process_message_wrapper(message: str, history: List[Dict[str, str]]) -> List[Dict[str, str]]:
+async def process_message_wrapper(message: str, history: List[Dict[str, str]]) -> List[Dict[str, str]]:
     """
     处理用户消息并生成响应，返回符合Gradio Chatbot messages格式的历史记录
     """
@@ -424,7 +424,7 @@ def process_message_wrapper(message: str, history: List[Dict[str, str]]) -> List
             i += 1
 
     # 调用process_message方法（使用hass_llm_controller）
-    response = hass_llm_controller.process_home_assistant_message(message, old_format_history)
+    response = await hass_llm_controller.process_home_assistant_message(message, old_format_history)
     
     # 添加新的用户消息和助手响应到历史记录
     updated_history = history.copy()
@@ -468,7 +468,7 @@ def create_chat_tab():
     recognition_status = gr.Textbox(label="语音识别状态", interactive=False, value="就绪")
     
     # 新增自动提交功能的语音识别函数
-    def recognize_and_auto_submit(audio, chat_history):
+    async def recognize_and_auto_submit(audio, chat_history):
         if not audio:
             return "", "请先录制语音", chat_history
         
@@ -496,7 +496,7 @@ def create_chat_tab():
                 hass_manager.update_entity_data()
                 
                 # 调用process_message_wrapper函数处理消息并生成回复，这样会包含TTS生成
-                updated_history = process_message_wrapper(text, chat_history)
+                updated_history = await process_message_wrapper(text, chat_history)
                 
                 status = f"语音识别成功: {text[:30]}...，已自动提交并生成回复"
                 return text, status, updated_history

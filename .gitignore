@@ -2,4 +2,4 @@
 __pycache__
 output
 logs
-source/config.py
+source/base_layer/config.py

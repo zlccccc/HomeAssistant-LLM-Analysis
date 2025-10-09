@@ -11,6 +11,10 @@ from source.api_layer.home_assistant import hass_manager
 from source.home_assistant_llm_controller_langgraph import hass_llm_controller_langgraph as hass_llm_controller
 from source.api_layer.qwen_speech_model import qwen_speech_manager
 
+import dotenv
+
+dotenv.load_dotenv(".env")
+
 # 设备控制选项卡相关函数
 def update_entity_groups(device_type: str) -> Tuple[gr.Dropdown, gr.Dropdown, gr.Textbox]:
     """

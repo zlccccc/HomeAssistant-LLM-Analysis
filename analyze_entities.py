@@ -11,6 +11,10 @@ from source.home_assistant_llm_controller_langgraph import hass_llm_controller_l
 # 导入日志工具
 from source.base_layer.utils import logger
 
+import dotenv
+
+dotenv.load_dotenv(".env")
+
 # 从get_sensor.py合并的功能函数
 def get_entity_info(entity_id: str) -> Optional[Dict[str, Any]]:
     """

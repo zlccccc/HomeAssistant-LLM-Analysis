@@ -169,14 +169,11 @@ class HomeAssistantLLMControllerLangGraph:
             # 构建系统提示
             system_prompt = self._build_system_prompt(state.entity_data)
             
-            # 准备消息历史
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message}
-            ]
+            to_invoke_messages = [{"role": "system", "content": system_prompt}, 
+                                  *state.messages]
             
             # 调用大模型生成回复
-            response = qwen_llm_manager.call_openai_api(messages)
+            response = qwen_llm_manager.call_openai_api(to_invoke_messages)
         
         return {"response": response, "messages": state.messages + [{"role": "assistant", "content": response}]}
     

@@ -153,7 +153,7 @@ pip install pyaudio pygame playsound pydub
 1. 配置设置
 
 ```shell
-cp source/config.py.sample source/config.py
+cp source/base_layer/config.py.sample source/base_layer/config.py
 ```
 
 2. 编辑配置文件，填入API密钥

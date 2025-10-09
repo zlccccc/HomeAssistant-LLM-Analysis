@@ -2,7 +2,7 @@
 
 ### 项目介绍
 
-这是一个基于Home Assistant的智能助手系统，集成了语音交互、自然语言处理和设备控制功能，通过友好的UI界面和语音接口为用户提供智能家居控制体验。系统利用大模型能力实现了智能对话和场景推荐，并支持实体数据分析和导出功能。
+这是一个基于Home Assistant的智能助手系统，集成了语音交互、自然语言处理和设备控制功能，通过友好的UI界面和语音接口为用户提供智能家居控制体验。系统利用大模型能力实现了智能对话和场景推荐，并支持实体数据分析和导出功能。最新版本已采用LangGraph重构核心控制器，提供更强大的对话流控制和状态管理能力。
 
 ### 项目架构图
 
@@ -14,7 +14,7 @@ graph TD
     end
   
     subgraph 业务逻辑层
-        G[home_assistant_llm_controller.py<br>控制器 - 协调API和业务逻辑]
+        G[home_assistant_llm_controller_langgraph.py<br>基于LangGraph的控制器]
         B6[command_parser.py<br>命令解析器]
     end
   
@@ -80,7 +80,7 @@ graph TD
    - `analyze_entities.py`: 实体分析工具，用于批量分析Home Assistant实体并生成详细报告
 2. **业务逻辑层**
 
-   - `home_assistant_llm_controller.py`: 核心控制器，协调API接口间的调用，处理实体分析、用户消息处理逻辑，并负责命令解析与执行
+   - `home_assistant_llm_controller_langgraph.py`: 基于LangGraph的核心控制器，采用状态机模式管理对话流程，协调API接口间的调用，处理实体分析、用户消息处理逻辑，并负责命令解析与执行
    - `command_parser.py`: 命令解析器，负责解析和执行控制指令，实现基于正则表达式的指令匹配和设备控制，由控制器调用
 3. **API对接层**
 
@@ -128,17 +128,18 @@ graph TD
 ### 系统特性
 
 1. **模块化设计**：清晰的分层架构，各模块职责明确，易于维护和扩展
-2. **多模态交互**：支持文本和语音两种交互方式
-3. **智能识别**：基于正则表达式和大模型的双重识别机制
-4. **完整日志**：支持控制台、主日志和历史日志三级日志系统，包含详细上下文信息
-5. **自动更新**：定期更新实体数据，确保信息准确性
+2. **基于LangGraph的状态管理**：采用图结构和状态机模式，提供更灵活和强大的对话流控制
+3. **多模态交互**：支持文本和语音两种交互方式
+4. **智能识别**：基于正则表达式和大模型的双重识别机制
+5. **完整日志**：支持控制台、主日志和历史日志三级日志系统，包含详细上下文信息
+6. **自动更新**：定期更新实体数据，确保信息准确性
 
 ### 依赖安装
 
 文本依赖：
 
 ```shell
-pip install requests openpyxl pandas gradio
+pip install requests openpyxl pandas gradio pydantic langgraph
 ```
 
 语音依赖：
@@ -186,7 +187,7 @@ api/
 │   │   ├── __init__.py
 │   │   ├── config.py        # 配置文件
 │   │   └── utils.py         # 工具函数和日志系统
-│   ├── home_assistant_llm_controller.py  # 业务逻辑控制器
+│   ├── home_assistant_llm_controller_langgraph.py  # 基于LangGraph的业务逻辑控制器
 │   └── command_parser.py    # 命令解析器
 ├── logs/                    # 日志文件目录
 ├── output/                  # 输出文件目录

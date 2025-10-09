@@ -2,18 +2,25 @@ import os
 import sys
 import requests
 from typing import Dict, List, Any, Tuple, Optional
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
+
+# 读取环境变量
+HA_URL = os.getenv("HA_URL", "http://localhost:8123")
+HA_TOKEN = os.getenv("HA_TOKEN", "")
+HEADERS = {
+    "Authorization": f"Bearer {HA_TOKEN}",
+    "Content-Type": "application/json"
+}
 
 # 导入模块化组件
-from source.base_layer.config import HA_URL, HEADERS
 from source.api_layer.home_assistant import hass_manager
 from source.home_assistant_llm_controller_langgraph import hass_llm_controller_langgraph as hass_llm_controller
 
 # 导入日志工具
 from source.base_layer.utils import logger
-
-import dotenv
-
-dotenv.load_dotenv(".env")
 
 # 从get_sensor.py合并的功能函数
 def get_entity_info(entity_id: str) -> Optional[Dict[str, Any]]:

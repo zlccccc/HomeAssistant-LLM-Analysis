@@ -17,17 +17,17 @@ from memu import MemuClient
 # 导入日志工具
 from source.base_layer.utils import logger
 
-# 导入配置
-from source.base_layer.config import OUTPUT_DIR
-
 # 导入其他必要的模块
 from source.api_layer.qwen_llm_model import qwen_llm_manager
 from source.api_layer.home_assistant import hass_manager
 from source.command_parser import CommandParser
 
 # 导入dotenv
-import dotenv
-dotenv.load_dotenv(".env")
+from dotenv import load_dotenv
+load_dotenv()
+
+# 读取环境变量
+OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
 
 # 定义状态类型
 class State(BaseModel):
@@ -61,7 +61,7 @@ class HomeAssistantLLMControllerLangGraph:
         
         logger.info("基于LangGraph的HomeAssistantLLMController已初始化")
     
-    def _build_memory(self) -> MemorySaver:
+    def _build_memory(self):
         """
         构建记忆
         """
@@ -93,8 +93,6 @@ class HomeAssistantLLMControllerLangGraph:
         
         return {"memorized_messages": state.messages}
 
-        
-    
     
     def _build_graph(self) -> StateGraph:
         """

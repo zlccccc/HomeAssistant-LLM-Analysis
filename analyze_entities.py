@@ -6,7 +6,7 @@ from typing import Dict, List, Any, Tuple, Optional
 # 导入模块化组件
 from source.base_layer.config import HA_URL, HEADERS
 from source.api_layer.home_assistant import hass_manager
-from source.home_assistant_llm_controller import hass_llm_controller
+from source.home_assistant_llm_controller_langgraph import hass_llm_controller_langgraph as hass_llm_controller
 
 # 导入日志工具
 from source.base_layer.utils import logger

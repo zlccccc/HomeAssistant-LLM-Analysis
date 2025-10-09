@@ -8,7 +8,7 @@ from source.base_layer.utils import logger
 
 # 导入模块化组件
 from source.api_layer.home_assistant import hass_manager
-from source.home_assistant_llm_controller import hass_llm_controller
+from source.home_assistant_llm_controller_langgraph import hass_llm_controller_langgraph as hass_llm_controller
 from source.api_layer.qwen_speech_model import qwen_speech_manager
 
 # 设备控制选项卡相关函数
@@ -560,7 +560,7 @@ def create_gradio_interface():
     return interface
 
 # 主函数
-def main(server_port=7860):
+def main(server_port):
     """
     主函数
     """
@@ -584,7 +584,7 @@ def main(server_port=7860):
 # 执行主函数
 if __name__ == "__main__":
     try:
-        main(server_port=7860)
+        main(server_port=8080)
     except KeyboardInterrupt:
         logger.info("\n程序已停止")
     except Exception as e:

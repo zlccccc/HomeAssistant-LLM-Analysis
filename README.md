@@ -25,8 +25,8 @@ graph TD
     end
   
     subgraph 基础服务层
-        B4[base_layer/config.py<br>配置管理]
         B7[base_layer/utils.py<br>工具函数和日志系统]
+        B8[.env<br>环境变量配置]
     end
   
     subgraph 外部服务
@@ -41,21 +41,20 @@ graph TD
     A -->|调用| B3
     C -->|调用| G
     C -->|调用| B1
-    C -->|调用| B4
     G -->|调用| B6
     G -->|调用| B1
     G -->|调用| B5
-    G -->|调用| B4
     B1 -->|HTTP请求| D
     B3 -->|HTTP请求| F
     B5 -->|HTTP请求| E
-    B1 -->|导入| B4
     B1 -->|导入| B7
-    B5 -->|导入| B4
+    B1 -->|读取| B8
     B5 -->|导入| B7
-    B3 -->|导入| B4
+    B5 -->|读取| B8
     B3 -->|导入| B7
+    B3 -->|读取| B8
     B6 -->|导入| B7
+    G -->|读取| B8
   
     %% 样式设置
     style A fill:#f9d5e5,stroke:#333,stroke-width:1px
@@ -65,8 +64,8 @@ graph TD
     style B1 fill:#d0d0ff,stroke:#333,stroke-width:1px
     style B3 fill:#d0d0ff,stroke:#333,stroke-width:1px
     style B5 fill:#d0d0ff,stroke:#333,stroke-width:1px
-    style B4 fill:#d5f9e3,stroke:#333,stroke-width:1px
     style B7 fill:#d5f9e3,stroke:#333,stroke-width:1px
+    style B8 fill:#d5f9e3,stroke:#333,stroke-width:1px
     style D fill:#d5e5f9,stroke:#333,stroke-width:1px
     style E fill:#d5e5f9,stroke:#333,stroke-width:1px
     style F fill:#d5e5f9,stroke:#333,stroke-width:1px
@@ -89,7 +88,6 @@ graph TD
    - `qwen_llm_model.py`: 大模型服务API对接接口，封装了与Qwen大模型API的交互，支持OpenAI兼容格式
 4. **基础服务层**
 
-   - `config.py`: 配置文件，存储所有API密钥、URL和配置参数
    - `utils.py`: 工具函数模块，提供日志系统配置和通用工具函数，支持UTF-8编码的多处理器日志记录
 5. **外部服务**
 
@@ -139,13 +137,13 @@ graph TD
 文本依赖：
 
 ```shell
-pip install requests openpyxl pandas gradio pydantic langgraph
+pip install requests openpyxl pandas gradio pydantic langgraph python-dotenv
 ```
 
 语音依赖：
 
 ```shell
-pip install pyaudio pygame playsound pydub
+pip install pyaudio pygame playsound pydub memu-py
 ```
 
 ### 使用方法
@@ -153,13 +151,19 @@ pip install pyaudio pygame playsound pydub
 1. 配置设置
 
 ```shell
-cp source/base_layer/config.py.sample source/base_layer/config.py
+cp .env.example .env
 ```
 
-2. 编辑配置文件，填入API密钥
+2. 编辑 `.env` 文件，填入API密钥和配置参数
 
-   - Home Assistant URL和访问令牌
-   - Qwen API密钥和模型参数
+   - `HA_URL`: Home Assistant 访问地址
+   - `HA_TOKEN`: Home Assistant 访问令牌
+   - `QWEN_API_KEY`: Qwen API密钥
+   - `QWEN_API_BASE`: Qwen API地址
+   - `QWEN_MODEL`: Qwen模型名称
+   - `QWEN_ASR_MODEL`: 语音识别模型
+   - `QWEN_TTS_MODEL`: 语音合成模型
+   - `OUTPUT_DIR`: 输出目录
 3. 运行应用
 
 ```shell
@@ -185,13 +189,14 @@ api/
 │   │   └── qwen_speech_model.py # 语音API对接
 │   ├── base_layer/          # 基础服务层
 │   │   ├── __init__.py
-│   │   ├── config.py        # 配置文件
 │   │   └── utils.py         # 工具函数和日志系统
 │   ├── home_assistant_llm_controller_langgraph.py  # 基于LangGraph的业务逻辑控制器
 │   └── command_parser.py    # 命令解析器
 ├── logs/                    # 日志文件目录
 ├── output/                  # 输出文件目录
-└── images/                  # 图片资源目录
+├── images/                  # 图片资源目录
+├── .env.example             # 环境变量配置示例
+└── .env                     # 环境变量配置(需自行创建)
 ```
 
 ### 最佳实践

@@ -4,12 +4,13 @@ import sys
 import pandas as pd
 from datetime import datetime
 from typing import Dict, List, Tuple, Any, Optional
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # 导入日志记录器
 from source.base_layer.utils import logger
-
-# 导入配置
-from source.base_layer.config import HA_URL, HA_TOKEN, OUTPUT_DIR, HEADERS
 
 class HomeAssistantManager:
     """
@@ -17,9 +18,13 @@ class HomeAssistantManager:
     """
     
     def __init__(self):
-        self.url = HA_URL
-        self.token = HA_TOKEN
-        self.headers = HEADERS
+        # 从环境变量读取配置
+        self.url = os.getenv("HA_URL", "http://localhost:8123")
+        self.token = os.getenv("HA_TOKEN", "")
+        self.headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json"
+        }
         self.entity_data = {}
         self.current_entity_summary = ""
         logger.info("正在初始化Home Assistant数据...")
@@ -297,7 +302,8 @@ class HomeAssistantManager:
             filename = f"home_assistant_entities_{timestamp}.xlsx"
             
             # 确保输出目录存在
-            output_dir = os.path.join(os.getcwd(), OUTPUT_DIR)
+            output_dir_name = os.getenv("OUTPUT_DIR", "output")
+            output_dir = os.path.join(os.getcwd(), output_dir_name)
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             

@@ -2,12 +2,13 @@ import requests
 import os
 import sys
 from typing import Any, Dict, List, Optional, Tuple, Union
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # 导入日志记录器
 from source.base_layer.utils import logger
-
-# 导入配置
-from source.base_layer.config import QWEN_API_KEY, QWEN_API_BASE, QWEN_MODEL, OUTPUT_DIR
 
 class QwenLLMModelManager:
     """
@@ -15,12 +16,14 @@ class QwenLLMModelManager:
     """
     
     def __init__(self):
-        self.api_key = QWEN_API_KEY
-        self.api_base = QWEN_API_BASE
-        self.model = QWEN_MODEL
+        # 从环境变量读取API配置
+        self.api_key = os.getenv("QWEN_API_KEY", "")
+        self.api_base = os.getenv("QWEN_API_BASE", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+        self.model = os.getenv("QWEN_MODEL", "qwen-flash")
         
         # 输出目录设置为当前运行路径下的output目录
-        self.output_dir = os.path.join(os.getcwd(), OUTPUT_DIR)
+        output_dir_name = os.getenv("OUTPUT_DIR", "output")
+        self.output_dir = os.path.join(os.getcwd(), output_dir_name)
         
         # 确保输出目录存在
         if not os.path.exists(self.output_dir):

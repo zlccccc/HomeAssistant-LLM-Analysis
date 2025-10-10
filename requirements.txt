@@ -1,0 +1,31 @@
+# 核心依赖 - 文本处理
+requests
+openpyxl
+pandas
+gradio
+pydantic
+python-dotenv
+
+
+httpx[socks]
+
+# LangChain 和 LangGraph 相关 (需要使用 --pre 标志安装预发布版本)
+# 安装命令: pip install --pre -U langchain langchain-core langchain-openai langgraph
+langchain
+langchain-core
+langchain-openai
+langgraph
+langchain-mcp-adapters
+
+# MCP 客户端
+memu-py
+
+# 语音处理依赖(可选)
+# pyaudio
+# pygame
+# playsound
+# pydub
+
+# 日志工具
+loguru
+

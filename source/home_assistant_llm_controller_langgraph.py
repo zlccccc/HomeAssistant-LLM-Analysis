@@ -7,7 +7,6 @@ from datetime import datetime
 # 导入langgraph相关模块
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
-from langchain_openai import ChatOpenAI
 from langchain.agents import create_agent
 from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
@@ -23,7 +22,7 @@ from memu import MemuClient
 from source.base_layer.utils import logger
 
 # 导入其他必要的模块
-from source.api_layer.qwen_llm_model import qwen_llm_manager
+from source.api_layer.llm_manager import llm_manager
 from source.api_layer.home_assistant import hass_manager
 from source.command_parser import CommandParser
 
@@ -201,9 +200,8 @@ class HomeAssistantLLMControllerLangGraph:
         }
         
     def _create_react_agent(self, tools):
-        llm_model = ChatOpenAI(model=os.getenv("QWEN_MODEL"),
-                  api_key=os.getenv("QWEN_API_KEY"),
-                  base_url=os.getenv("QWEN_API_BASE"))
+        # 使用llm_manager中已配置好的模型，确保整个应用使用统一的模型配置
+        llm_model = llm_manager.get_chat_model()
         agent = create_agent(llm_model, tools)
         return agent
         
@@ -230,7 +228,7 @@ class HomeAssistantLLMControllerLangGraph:
             
             ha_url = os.getenv("HA_URL", "http://localhost:8123")
             ha_token = os.getenv("HA_TOKEN")
-            ha_mcp_endpoint = os.getenv("HA_MCP_ENDPOINT")
+            ha_mcp_endpoint = os.getenv("HA_MCP_ENDPOINT", "/api/mcp")
 
             client = MultiServerMCPClient(
                 {
@@ -398,7 +396,7 @@ class HomeAssistantLLMControllerLangGraph:
             ]
             
             # 调用大模型分析
-            analysis_result = qwen_llm_manager.call_openai_api(messages, temperature=0.3)
+            analysis_result = llm_manager.call_openai_api(messages, temperature=0.3)
             
             # 生成简短摘要
             summary_prompt = """
@@ -411,7 +409,7 @@ class HomeAssistantLLMControllerLangGraph:
                 {"role": "user", "content": summary_prompt}
             ]
             
-            summary = qwen_llm_manager.call_openai_api(summary_messages, temperature=0.1)
+            summary = llm_manager.call_openai_api(summary_messages, temperature=0.1)
             
             # 解析分析结果为结构化数据
             analysis = {

@@ -6,6 +6,9 @@ from datetime import datetime
 from typing import Dict, List, Tuple, Any, Optional
 from dotenv import load_dotenv
 
+# 导入MCP客户端
+from langchain_mcp_adapters.client import MultiServerMCPClient
+
 # 加载环境变量
 load_dotenv()
 
@@ -99,6 +102,46 @@ class HomeAssistantManager:
             sorted_groups[group] = sorted_entities
         
         return sorted_groups
+    
+    def get_mcp_client(self) -> Optional[MultiServerMCPClient]:
+        """
+        获取MCP客户端实例
+        :return: MultiServerMCPClient实例
+        """
+        try:
+            # 使用已有的配置
+            ha_mcp_endpoint = os.getenv("HA_MCP_ENDPOINT", "/mcp_server/sse")
+            
+            # 创建MCP客户端
+            client = MultiServerMCPClient(
+                {
+                    "homeassistant": {
+                        "transport": "sse",
+                        "url": f"{self.url}{ha_mcp_endpoint}",
+                        "headers": self.headers,
+                    }
+                }
+            )
+            
+            return client
+        except Exception as e:
+            logger.error(f"创建MCP客户端失败: {str(e)}")
+            return None
+    
+    async def get_mcp_tools(self) -> Optional[List]:
+        """
+        获取MCP可用的工具
+        :return: 工具列表
+        """
+        try:
+            client = self.get_mcp_client()
+            if client:
+                tools = await client.get_tools()
+                return tools
+            return None
+        except Exception as e:
+            logger.error(f"获取MCP工具失败: {str(e)}")
+            return None
     
     def get_and_classify_entities(self) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, List[Dict[str, Any]]]]]:
         """

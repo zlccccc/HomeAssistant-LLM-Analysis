@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import asyncio
 from typing import Dict, List, Any, Tuple, Optional
 from datetime import datetime
 
@@ -206,58 +207,88 @@ class HomeAssistantLLMControllerLangGraph:
                   base_url=os.getenv("QWEN_API_BASE"))
         agent = create_agent(llm_model, tools)
         return agent
-        
     
-    async def _generate_response(self, state: State) -> Dict[str, Any]:
+    async def _generate_response_async(self, state: State) -> Dict[str, Any]:
         """
-        生成回复消息
+        异步生成回复消息（内部实现）
         """
-        logger.info("生成回复消息")
-        
         # 获取最新的用户消息
         last_message = state.messages[-1] if state.messages else {"content": ""}
         user_message = last_message.get("content", "")
         
-        # 如果有执行结果，使用它来生成回复
+        # 构建系统提示
+        system_prompt = self._build_system_prompt(state.entity_data, state, user_message)
+        
+        # 转换消息格式为 LangChain 消息对象
+        lc_messages = []
+        lc_messages.append(SystemMessage(content=system_prompt))
+        for msg in state.messages:
+            if msg.get("role") == "user":
+                lc_messages.append(HumanMessage(content=msg.get("content", "")))
+            elif msg.get("role") == "assistant":
+                lc_messages.append(AIMessage(content=msg.get("content", "")))
+        
+        ha_url = os.getenv("HA_URL", "http://localhost:8123")
+        ha_token = os.getenv("HA_TOKEN")
+        ha_mcp_endpoint = os.getenv("HA_MCP_ENDPOINT")
+
+        client = MultiServerMCPClient(
+            {
+                "homeassistant": {
+                    "transport": "sse",
+                    "url": f"{ha_url}{ha_mcp_endpoint}",
+                    "headers": {
+                        "Authorization": f"Bearer {ha_token}",
+                        "Content-Type": "application/json"
+                    },
+                }
+            }
+        )
+        tools = await client.get_tools()
+        logger.info(f"获取到 {len(tools)} 个 MCP 工具")
+        
+        agent = self._create_react_agent(tools)
+        agent_response = await agent.ainvoke({"messages": lc_messages})
+        logger.debug(f"agent.ainvoke 响应: {agent_response}")
+        
+        # 转换响应消息格式
+        formatted_msgs = []
+        for msg in agent_response["messages"]:
+            if isinstance(msg, HumanMessage):
+                formatted_msgs.append({"role": "user", "content": msg.content})
+            elif isinstance(msg, SystemMessage):
+                formatted_msgs.append({"role": "system", "content": msg.content})
+            else:
+                formatted_msgs.append({"role": "assistant", "content": msg.content})
+        
+        response = agent_response["messages"][-1].content
+        return {"response": response, "messages": formatted_msgs}
+        
+    
+    async def _generate_response(self, state: State) -> Dict[str, Any]:
+        """
+        生成回复消息（异步版本）
+        """
+        logger.info("生成回复消息")
+        
+        # 如果有执行结果，直接使用它来生成回复
         if state.execution_result:
             response = state.execution_result
+            # 保持原有的消息列表，只添加助手回复
+            return {"response": response, "messages": state.messages + [{"role": "assistant", "content": response}]}
         else:
-            # 构建系统提示
-            system_prompt = self._build_system_prompt(state.entity_data, state, user_message)
+            # 调用异步方法生成回复
+            try:
+                result = await self._generate_response_async(state)
+            except Exception as e:
+                logger.error(f"生成回复时出错: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                # 发生错误时返回默认消息
+                error_msg = f"抱歉，生成回复时出错: {str(e)}"
+                return {"response": error_msg, "messages": state.messages + [{"role": "assistant", "content": error_msg}]}
             
-            to_invoke_messages = [{"role": "system", "content": system_prompt}, 
-                                  *state.messages]
-            
-            ha_url = os.getenv("HA_URL", "http://localhost:8123")
-            ha_token = os.getenv("HA_TOKEN")
-            ha_mcp_endpoint = os.getenv("HA_MCP_ENDPOINT")
-
-            client = MultiServerMCPClient(
-                {
-                    "homeassistant": {
-                        "transport": "sse",
-                        "url": f"{ha_url}{ha_mcp_endpoint}",
-                        "headers": {
-                            "Authorization": f"Bearer {ha_token}",
-                            "Content-Type": "application/json"
-                        },
-                    }
-                }
-            )
-            tools = await client.get_tools()
-            agent = self._create_react_agent(tools)
-            response = await agent.ainvoke({"messages": to_invoke_messages})
-            print(f"agent.ainvoke: {response}")
-            formatted_msgs = []
-            for msg in response["messages"]:
-                if isinstance(msg, HumanMessage):
-                    formatted_msgs.append({"role": "user", "content": msg.content})
-                elif isinstance(msg, SystemMessage):
-                    formatted_msgs.append({"role": "system", "content": msg.content})
-                else:
-                    formatted_msgs.append({"role": "assistant", "content": msg.content})
-            response = response["messages"][-1].content # FIXME 会导致展示的信息不全
-        return {"response": response, "messages": formatted_msgs}
+            return result
     
     def _build_system_prompt(self, entity_data: Dict[str, Any], state: State, user_message: str) -> str:
         """

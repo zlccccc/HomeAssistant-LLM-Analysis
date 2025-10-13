@@ -5,25 +5,20 @@ from typing import Dict, List, Any, Tuple, Optional
 from datetime import datetime
 
 # 导入langgraph相关模块
-from langchain_mcp_adapters.client import MultiServerMCPClient
 
-from langchain_openai import ChatOpenAI
 from langchain.agents import create_agent
 from langgraph.graph import StateGraph, END
-from langgraph.graph.state import CompiledStateGraph
-from langgraph.graph.message import add_messages
-from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from pydantic import BaseModel
 
-from memu import MemuClient
+from source.api_layer.memory_manager import memory_manager
 
 
 # 导入日志工具
 from source.base_layer.utils import logger
 
 # 导入其他必要的模块
-from source.api_layer.qwen_llm_model import qwen_llm_manager
+from source.api_layer.llm_manager import llm_manager
 from source.api_layer.home_assistant import hass_manager
 from source.command_parser import CommandParser
 
@@ -61,42 +56,23 @@ class HomeAssistantLLMControllerLangGraph:
         
         # 初始化LangGraph
         self.graph = self._build_graph()
-        self.memory = self._build_memory()
         self.compiled_graph = self.graph.compile()
         
         logger.info("基于LangGraph的HomeAssistantLLMController已初始化")
     
-    def _build_memory(self):
-        """
-        构建记忆
-        """
-        if os.environ.get("USE_MEMORY_MESSAGES", "false") != "true":
-            return None
-        memory_client = MemuClient(
-            base_url="https://api.memu.so",
-            api_key=os.environ.get("MEMU_API_KEY", "")
-        )
-        return memory_client
-    
     def _memory_messages(self, state: State) -> Dict[str, Any]:
         """
         记忆消息
+        使用memory_manager存储对话消息
         """
-        if self.memory is None:
-            return
-        
+        logger.info("处理对话记忆")
+
         to_memorize_messages = [msg for msg in state.messages if msg not in state.memorized_messages]
+
+        memory_manager.memorize_messages(to_memorize_messages)
         
-        if to_memorize_messages:
-            self.memory.memorize_conversation(
-                conversation=to_memorize_messages,
-                user_id=os.environ.get("MEMU_USER_ID", "user001"), 
-                user_name=os.environ.get("MEMU_USER_NAME", "master"), 
-                agent_id=os.environ.get("MEMU_AGENT_ID", "homeassistant"), 
-                agent_name=os.environ.get("MEMU_AGENT_NAME", "Home Assistant")
-            )
-        
-        return {"memorized_messages": state.messages}
+        # 返回状态，确保LangGraph流程正常继续
+        return state
 
     
     def _build_graph(self) -> StateGraph:
@@ -201,9 +177,8 @@ class HomeAssistantLLMControllerLangGraph:
         }
         
     def _create_react_agent(self, tools):
-        llm_model = ChatOpenAI(model=os.getenv("QWEN_MODEL"),
-                  api_key=os.getenv("QWEN_API_KEY"),
-                  base_url=os.getenv("QWEN_API_BASE"))
+        # 使用llm_manager中已配置好的模型，确保整个应用使用统一的模型配置
+        llm_model = llm_manager.get_chat_model()
         agent = create_agent(llm_model, tools)
         return agent
         
@@ -228,23 +203,8 @@ class HomeAssistantLLMControllerLangGraph:
             to_invoke_messages = [{"role": "system", "content": system_prompt}, 
                                   *state.messages]
             
-            ha_url = os.getenv("HA_URL", "http://localhost:8123")
-            ha_token = os.getenv("HA_TOKEN")
-            ha_mcp_endpoint = os.getenv("HA_MCP_ENDPOINT")
-
-            client = MultiServerMCPClient(
-                {
-                    "homeassistant": {
-                        "transport": "sse",
-                        "url": f"{ha_url}{ha_mcp_endpoint}",
-                        "headers": {
-                            "Authorization": f"Bearer {ha_token}",
-                            "Content-Type": "application/json"
-                        },
-                    }
-                }
-            )
-            tools = await client.get_tools()
+            # 使用hass_manager中的方法获取MCP工具
+            tools = await hass_manager.get_mcp_tools()
             agent = self._create_react_agent(tools)
             response = await agent.ainvoke({"messages": to_invoke_messages})
             print(f"agent.ainvoke: {response}")
@@ -264,17 +224,7 @@ class HomeAssistantLLMControllerLangGraph:
         构建系统提示，包含实体信息
         """
         # 填充记忆
-        retrieved_prompt = ""
-        
-        if self.memory:
-            retrieved_info = self.memory.retrieve_default_categories(
-                user_id=os.environ.get("MEMU_USER_ID", "user001"),
-                agent_id=os.environ.get("MEMU_AGENT_ID", "homeassistant")
-            )
-        
-            for category in retrieved_info.categories:
-                if category.summary:
-                    retrieved_prompt += f"**{category.name}:** {category.summary}\n\n"
+        retrieved_prompt = memory_manager.retrieve_memory_info()
         
         # 生成设备概览
         device_overview = self._generate_device_overview(entity_data)
@@ -398,7 +348,7 @@ class HomeAssistantLLMControllerLangGraph:
             ]
             
             # 调用大模型分析
-            analysis_result = qwen_llm_manager.call_openai_api(messages, temperature=0.3)
+            analysis_result = llm_manager.call_openai_api(messages, temperature=0.3)
             
             # 生成简短摘要
             summary_prompt = """
@@ -411,7 +361,7 @@ class HomeAssistantLLMControllerLangGraph:
                 {"role": "user", "content": summary_prompt}
             ]
             
-            summary = qwen_llm_manager.call_openai_api(summary_messages, temperature=0.1)
+            summary = llm_manager.call_openai_api(summary_messages, temperature=0.1)
             
             # 解析分析结果为结构化数据
             analysis = {

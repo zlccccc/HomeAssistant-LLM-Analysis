@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import asyncio
 from typing import Dict, List, Any, Tuple, Optional
 from datetime import datetime
 
@@ -181,14 +182,11 @@ class HomeAssistantLLMControllerLangGraph:
         llm_model = llm_manager.get_chat_model()
         agent = create_agent(llm_model, tools)
         return agent
-        
     
-    async def _generate_response(self, state: State) -> Dict[str, Any]:
+    async def _generate_response_async(self, state: State) -> Dict[str, Any]:
         """
-        生成回复消息
+        异步生成回复消息（内部实现）
         """
-        logger.info("生成回复消息")
-        
         # 获取最新的用户消息
         last_message = state.messages[-1] if state.messages else {"content": ""}
         user_message = last_message.get("content", "")
@@ -218,6 +216,32 @@ class HomeAssistantLLMControllerLangGraph:
                     formatted_msgs.append({"role": "assistant", "content": msg.content})
             response = response["messages"][-1].content # FIXME 会导致展示的信息不全
         return {"response": response, "messages": formatted_msgs}
+        
+    
+    async def _generate_response(self, state: State) -> Dict[str, Any]:
+        """
+        生成回复消息（异步版本）
+        """
+        logger.info("生成回复消息")
+        
+        # 如果有执行结果，直接使用它来生成回复
+        if state.execution_result:
+            response = state.execution_result
+            # 保持原有的消息列表，只添加助手回复
+            return {"response": response, "messages": state.messages + [{"role": "assistant", "content": response}]}
+        else:
+            # 调用异步方法生成回复
+            try:
+                result = await self._generate_response_async(state)
+            except Exception as e:
+                logger.error(f"生成回复时出错: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                # 发生错误时返回默认消息
+                error_msg = f"抱歉，生成回复时出错: {str(e)}"
+                return {"response": error_msg, "messages": state.messages + [{"role": "assistant", "content": error_msg}]}
+            
+            return result
     
     def _build_system_prompt(self, entity_data: Dict[str, Any], state: State, user_message: str) -> str:
         """

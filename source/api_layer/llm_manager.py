@@ -2,10 +2,7 @@ import os
 from typing import List, Dict, Any, Optional
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-import logging
-
-# 配置日志
-logger = logging.getLogger(__name__)
+from source.base_layer.utils import logger
 
 class LLMManager:
     """

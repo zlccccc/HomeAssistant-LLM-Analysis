@@ -5,10 +5,6 @@ import json
 import base64
 import time
 from typing import Dict, Any, Optional
-from dotenv import load_dotenv
-
-# 加载环境变量
-load_dotenv()
 
 # 导入日志记录器
 from source.base_layer.utils import logger

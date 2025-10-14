@@ -375,7 +375,7 @@ class HomeAssistantLLMControllerLangGraph:
             analysis_result = llm_manager.call_openai_api(messages, temperature=0.3)
             
             # 生成简短摘要
-            summary_prompt = """
+            summary_prompt = f"""
 请将以下分析报告浓缩为一个简短摘要（最多200字）：
 {analysis_result}
             """

@@ -4,14 +4,8 @@ import sys
 import pandas as pd
 from datetime import datetime
 from typing import Dict, List, Tuple, Any, Optional
-from dotenv import load_dotenv
-
 # 导入MCP客户端
 from langchain_mcp_adapters.client import MultiServerMCPClient
-
-# 加载环境变量
-load_dotenv()
-
 # 导入日志记录器
 from source.base_layer.utils import logger
 

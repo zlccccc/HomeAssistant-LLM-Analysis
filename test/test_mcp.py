@@ -61,7 +61,7 @@ async def main():
             }
         }
     )
-    
+
     # 获取工具并记录输出
     tools = await client.get_tools()
     function_calls["get_tools"]["output"] = {
@@ -121,16 +121,11 @@ async def main():
     os.makedirs(output_dir, exist_ok=True)
     filename = f"mcp_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     output_path = os.path.join(output_dir, filename)
-    
-    # 构建完整的输出数据，包含原有的response和新的函数调用记录
-    output_data = {
-        "response": response,
-        "function_calls": function_calls
-    }
+
     
     # 保存到文件
     with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(output_data, f, ensure_ascii=False, indent=2, default=str)
+        json.dump(function_calls, f, ensure_ascii=False, indent=2, default=str)
     
     print(f"响应和函数调用记录已保存到: {output_path}")
 

@@ -1,6 +1,7 @@
 import os
 import asyncio
 import json
+from datetime import datetime
 from dotenv import load_dotenv
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_openai import ChatOpenAI
@@ -54,6 +55,16 @@ async def main():
     agent = create_agent(llm_model, tools)
     response = await agent.ainvoke({"messages": [{"role": "user", "content": "我感觉屋里面有点热啊？"}]})
     print(response)
+
+    # 保存响应为 JSON 文件到 OUTPUT_DIR
+    output_dir_name = os.getenv("OUTPUT_DIR", "output")
+    output_dir = os.path.join(os.getcwd(), output_dir_name)
+    os.makedirs(output_dir, exist_ok=True)
+    filename = f"mcp_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    output_path = os.path.join(output_dir, filename)
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(response, f, ensure_ascii=False, indent=2, default=str)
+    print(f"响应已保存到: {output_path}")
 
 if __name__ == "__main__":
     asyncio.run(main())

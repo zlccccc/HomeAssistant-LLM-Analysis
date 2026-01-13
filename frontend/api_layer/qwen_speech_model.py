@@ -1,39 +1,40 @@
-import os
-import sys
-import requests
-import json
 import base64
+import json
+import os
 import time
-from typing import Dict, Any, Optional
+from typing import Any
+
+import requests
 
 # 导入日志记录器
-from source.base_layer.utils import logger
+from backend.source.base_layer.utils import logger
+
 
 class QwenSpeechManager:
     """
     Qwen语音管理器，处理与Qwen API的语音识别（ASR）和语音合成（TTS）功能
     增强版：添加流式处理、参数调整和状态跟踪
     """
-    
+
     def __init__(self):
         # 从环境变量读取API配置
         self.api_key = os.getenv("QWEN_API_KEY", "")
         self.api_base = os.getenv("QWEN_API_BASE", "https://dashscope.aliyuncs.com/compatible-mode/v1")
         self.model = os.getenv("QWEN_MODEL", "qwen-flash")
-        
+
         # 输出目录设置为当前运行路径下的output目录
         output_dir_name = os.getenv("OUTPUT_DIR", "output")
         self.output_dir = os.path.join(os.getcwd(), output_dir_name)
-        
+
         # 确保输出目录存在
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
             logger.info(f"创建输出目录: {self.output_dir}")
-        
+
         # ASR和TTS的模型名称 - 从环境变量获取
         self.asr_model = os.getenv("QWEN_ASR_MODEL", "qwen3-asr-flash")
         self.tts_model = os.getenv("QWEN_TTS_MODEL", "qwen3-tts-flash")
-        
+
         # 状态跟踪
         self.last_asr_time = 0
         self.last_tts_time = 0
@@ -41,10 +42,10 @@ class QwenSpeechManager:
         self.asr_failure_count = 0
         self.tts_success_count = 0
         self.tts_failure_count = 0
-        
+
         logger.info("QwenSpeechManager 初始化完成")
-    
-    def audio_to_text(self, audio_file: str, format_type: str = "wav") -> Optional[str]:
+
+    def audio_to_text(self, audio_file: str, format_type: str = "wav") -> str | None:
         """
         语音识别（ASR）：将音频文件转换为文本
         :param audio_file: 音频文件路径
@@ -54,29 +55,29 @@ class QwenSpeechManager:
         try:
             logger.info(f"开始语音识别，文件：{audio_file}")
             start_time = time.time()
-            
+
             # 检查文件是否存在
             if not os.path.exists(audio_file):
                 error_msg = f"错误：音频文件不存在 - {audio_file}"
                 logger.error(error_msg)
                 self.asr_failure_count += 1
                 return None
-            
+
             # 获取文件大小以记录信息
             file_size = os.path.getsize(audio_file) / (1024 * 1024)  # 转换为MB
             logger.info(f"音频文件大小: {file_size:.2f}MB, 格式: {format_type}")
-            
+
             # 读取音频文件并进行base64编码
             try:
                 with open(audio_file, 'rb') as f:
                     audio_data = base64.b64encode(f.read()).decode('utf-8')
                 logger.info(f"音频文件已读取并编码，base64长度: {len(audio_data)}")
             except Exception as e:
-                error_msg = f"读取音频文件失败: {str(e)}"
+                error_msg = f"读取音频文件失败: {e!s}"
                 logger.error(error_msg)
                 self.asr_failure_count += 1
                 return None
-            
+
             # 构建请求参数，使用DashScope API格式
             params = {
                 "model": self.asr_model,
@@ -107,16 +108,16 @@ class QwenSpeechManager:
                     }
                 }
             }
-            
+
             # 构建请求头
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.api_key}"
             }
-            
+
             # 使用DashScope API端点
             api_endpoint = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
-            
+
             # 发送请求
             try:
                 response = requests.post(
@@ -125,7 +126,7 @@ class QwenSpeechManager:
                     json=params,
                     timeout=30
                 )
-                
+
                 if response.status_code == 200:
                     result = response.json()
                     # 解析DashScope API响应格式
@@ -136,7 +137,7 @@ class QwenSpeechManager:
                                 for content_item in choice["message"]["content"]:
                                     if "text" in content_item:
                                         text += content_item["text"]
-                    
+
                     logger.info(f"语音识别成功，识别文本长度: {len(text)}字符")
                     self.asr_success_count += 1
                     self.last_asr_time = time.time()
@@ -147,18 +148,18 @@ class QwenSpeechManager:
                     self.asr_failure_count += 1
                     return None
             except Exception as e:
-                error_msg = f"API请求异常: {str(e)}"
+                error_msg = f"API请求异常: {e!s}"
                 logger.error(error_msg)
                 self.asr_failure_count += 1
                 return None
-            
+
         except Exception as e:
-            error_msg = f"语音识别出错: {str(e)}"
+            error_msg = f"语音识别出错: {e!s}"
             logger.error(error_msg)
             logger.exception("语音识别详细错误堆栈:")
             self.asr_failure_count += 1
             return None
-    
+
     def text_to_audio(self, text: str, output_file: str, voice: str = "female") -> bool:
         """
         语音合成（TTS）：将文本转换为音频文件
@@ -178,19 +179,19 @@ class QwenSpeechManager:
                     char_count = 2
                 else:
                     char_count = 1
-                
+
                 # 检查是否超过限制
                 if total_chars + char_count > 600:
                     break
-                
+
                 truncated_text += char
                 total_chars += char_count
-            
+
             # 如果进行了截断，记录警告信息
             if len(truncated_text) < len(text):
                 logger.warning(f"文本过长，已截断至{total_chars}个字符进行合成")
                 text = truncated_text
-            
+
             # 映射voice参数到DashScope支持的声音名称
             voice_mapping = {
                 "female": "Cherry",
@@ -223,14 +224,14 @@ class QwenSpeechManager:
                     json=params,
                     timeout=30
                 )
-                
+
                 if response.status_code == 200:
                     result = response.json()
                     # 处理DashScope API响应，提取音频URL
                     if "output" in result and "audio" in result["output"] and "url" in result["output"]["audio"]:
                         audio_url = result["output"]["audio"]["url"]
                         logger.info(f"获取到音频URL: {audio_url}")
-                        
+
                         # 从URL下载音频文件
                         try:
                             audio_response = requests.get(audio_url, timeout=30)
@@ -239,15 +240,15 @@ class QwenSpeechManager:
                                 with open(output_file, 'wb') as f:
                                     f.write(audio_response.content)
                                 logger.info(f"语音合成成功，音频文件已下载并保存: {output_file}")
-                                
+
                                 # 播放下载的音频文件
                                 try:
                                     self._play_audio(output_file)
                                     logger.info(f"音频文件已成功播放: {output_file}")
                                 except Exception as play_error:
-                                    logger.warning(f"音频播放失败: {str(play_error)}")
+                                    logger.warning(f"音频播放失败: {play_error!s}")
                                     # 播放失败不影响整体功能，继续返回成功
-                                
+
                                 self.tts_success_count += 1
                                 self.last_tts_time = time.time()
                                 return True
@@ -257,7 +258,7 @@ class QwenSpeechManager:
                                 self.tts_failure_count += 1
                                 return False
                         except Exception as download_error:
-                            error_msg = f"下载音频文件时出错: {str(download_error)}"
+                            error_msg = f"下载音频文件时出错: {download_error!s}"
                             logger.error(error_msg)
                             self.tts_failure_count += 1
                             return False
@@ -272,18 +273,18 @@ class QwenSpeechManager:
                     self.tts_failure_count += 1
                     return False
             except Exception as e:
-                error_msg = f"API请求异常: {str(e)}"
+                error_msg = f"API请求异常: {e!s}"
                 logger.error(error_msg)
                 self.tts_failure_count += 1
                 return False
-            
+
         except Exception as e:
-            error_msg = f"语音合成出错: {str(e)}"
+            error_msg = f"语音合成出错: {e!s}"
             logger.error(error_msg)
             logger.exception("语音合成详细错误堆栈:")
             self.tts_failure_count += 1
             return False
-    
+
     def _play_audio(self, audio_file: str):
         """
         播放音频文件的辅助方法
@@ -302,16 +303,16 @@ class QwenSpeechManager:
             pygame.mixer.quit()
             return
         except Exception as pygame_error:
-            logger.debug(f"pygame播放失败，尝试其他方法: {str(pygame_error)}")
-        
+            logger.debug(f"pygame播放失败，尝试其他方法: {pygame_error!s}")
+
         # 方法2: 尝试使用playsound播放音频
         try:
             from playsound import playsound
             playsound(audio_file)
             return
         except Exception as playsound_error:
-            logger.debug(f"playsound播放失败，尝试其他方法: {str(playsound_error)}")
-        
+            logger.debug(f"playsound播放失败，尝试其他方法: {playsound_error!s}")
+
         # 方法3: 尝试使用pydub播放音频
         try:
             from pydub import AudioSegment
@@ -320,14 +321,14 @@ class QwenSpeechManager:
             play(audio)
             return
         except Exception as pydub_error:
-            logger.debug(f"pydub播放失败，尝试其他方法: {str(pydub_error)}")
-        
+            logger.debug(f"pydub播放失败，尝试其他方法: {pydub_error!s}")
+
         # 方法4: 尝试使用系统默认程序播放音频（跨平台）
         try:
             import os
             import platform
             import subprocess
-            
+
             system = platform.system()
             if system == 'Windows':
                 os.startfile(audio_file)
@@ -339,11 +340,11 @@ class QwenSpeechManager:
                 raise Exception(f"不支持的操作系统: {system}")
             return
         except Exception as system_error:
-            logger.debug(f"系统默认播放器播放失败: {str(system_error)}")
+            logger.debug(f"系统默认播放器播放失败: {system_error!s}")
         # 所有方法都失败
         raise Exception("无法播放音频文件，所有尝试的播放方法都失败了")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         获取语音服务统计信息
         :return: 统计信息字典

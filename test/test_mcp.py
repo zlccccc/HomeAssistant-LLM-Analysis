@@ -1,11 +1,12 @@
-import os
 import asyncio
 import json
+import os
 from datetime import datetime
+
 from dotenv import load_dotenv
+from langchain.agents import create_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_openai import ChatOpenAI
-from langchain.agents import create_agent
 
 # 禁用代理（避免 localhost 连接通过代理）
 os.environ.pop('http_proxy', None)
@@ -72,7 +73,7 @@ async def main():
         } for tool in tools],
         "timestamp": datetime.now().isoformat()
     }
-    
+
     print(f"✓ 成功连接！获取到 {len(tools)} 个工具:")
     for tool in tools:
         print(f"  - {tool.name}: {tool.description} (args_schema: {tool.args_schema})")
@@ -86,7 +87,7 @@ async def main():
                 },
                 "output": None
             }
-            
+
             # 调用该工具
             print(f"调用工具 {tool.name} ...")
             result = await tool.arun(tool_input={})
@@ -95,24 +96,24 @@ async def main():
                     result = json.loads(result)
                 except json.JSONDecodeError:
                     pass
-            
+
             # 记录工具调用输出
             function_calls["tool_calls"][tool.name]["output"] = {
                 "result": result,
                 "timestamp": datetime.now().isoformat()
             }
             print(json.dumps(result, ensure_ascii=False, indent=2))
-    
+
     # 创建agent并调用
     agent = create_agent(llm_model, tools)
     response = await agent.ainvoke({"messages": [{"role": "user", "content": "我感觉屋里面有点热啊？"}]})
-    
+
     # 记录agent调用输出
     function_calls["agent_invoke"]["output"] = {
         "response": response,
         "timestamp": datetime.now().isoformat()
     }
-    
+
     print(response)
 
     # 保存完整数据到JSON文件
@@ -122,11 +123,11 @@ async def main():
     filename = f"mcp_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     output_path = os.path.join(output_dir, filename)
 
-    
+
     # 保存到文件
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(function_calls, f, ensure_ascii=False, indent=2, default=str)
-    
+
     print(f"响应和函数调用记录已保存到: {output_path}")
 
 if __name__ == "__main__":

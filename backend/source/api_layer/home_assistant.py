@@ -1,19 +1,22 @@
-import requests
 import os
-import sys
-import pandas as pd
 from datetime import datetime
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Any
+
+import pandas as pd
+import requests
+
 # 导入MCP客户端
 from langchain_mcp_adapters.client import MultiServerMCPClient
+
 # 导入日志记录器
-from source.base_layer.utils import logger
+from backend.source.base_layer.utils import logger
+
 
 class HomeAssistantManager:
     """
     Home Assistant管理类，处理与Home Assistant的所有交互
     """
-    
+
     def __init__(self):
         # 从环境变量读取配置
         self.url = os.getenv("HA_URL", "http://localhost:8123")
@@ -26,8 +29,8 @@ class HomeAssistantManager:
         self.current_entity_summary = ""
         logger.info("正在初始化Home Assistant数据...")
         self.update_entity_data()
-    
-    def group_entities_by_name(self, entities: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+
+    def group_entities_by_name(self, entities: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         """
         将实体按名称分组
         分组规则：
@@ -36,16 +39,16 @@ class HomeAssistantManager:
         3. 使用常见的分隔符和规则识别位置/区域信息
         """
         grouped_entities = {}
-        
+
         # 常见的位置关键词（可根据需要扩展）
         location_keywords = [
-            "客厅", "卧室", "厨房", "卫生间", "浴室", "书房", "儿童房", "主卧", "次卧", 
+            "客厅", "卧室", "厨房", "卫生间", "浴室", "书房", "儿童房", "主卧", "次卧",
             "阳台", "门厅", "走廊", "餐厅", "车库", "花园", "院子", "阁楼"
         ]
-        
+
         for entity in entities:
             group_name = "其他"
-            
+
             # 尝试从friendly_name提取分组
             friendly_name = entity.get("friendly_name", "")
             if friendly_name:
@@ -54,7 +57,7 @@ class HomeAssistantManager:
                     if keyword in friendly_name:
                         group_name = keyword
                         break
-                
+
                 # 如果没有匹配到关键词，尝试按分隔符分割
                 if group_name == "其他":
                     # 尝试按常见分隔符分割
@@ -65,7 +68,7 @@ class HomeAssistantManager:
                             if parts:
                                 group_name = parts[0].strip()
                                 break
-            
+
             # 如果friendly_name未能提取分组，尝试从entity_id提取
             if group_name == "其他":
                 entity_id = entity.get("entity_id", "")
@@ -82,22 +85,22 @@ class HomeAssistantManager:
                                 group_name = parts[0] + "_" + parts[1]
                             else:
                                 group_name = parts[0]
-            
+
             # 将实体添加到对应分组
             if group_name not in grouped_entities:
                 grouped_entities[group_name] = []
             grouped_entities[group_name].append(entity)
-        
+
         # 对分组进行排序
         sorted_groups = {}
         for group in sorted(grouped_entities.keys()):
             # 对同一分组内的实体按名称排序
             sorted_entities = sorted(grouped_entities[group], key=lambda s: s.get("friendly_name", s.get("entity_id", "")))
             sorted_groups[group] = sorted_entities
-        
+
         return sorted_groups
-    
-    def get_mcp_client(self) -> Optional[MultiServerMCPClient]:
+
+    def get_mcp_client(self) -> MultiServerMCPClient | None:
         """
         获取MCP客户端实例
         :return: MultiServerMCPClient实例
@@ -105,7 +108,7 @@ class HomeAssistantManager:
         try:
             # 使用已有的配置
             ha_mcp_endpoint = os.getenv("HA_MCP_ENDPOINT", "/mcp_server/sse")
-            
+
             # 创建MCP客户端
             client = MultiServerMCPClient(
                 {
@@ -116,28 +119,70 @@ class HomeAssistantManager:
                     }
                 }
             )
-            
+
             return client
         except Exception as e:
-            logger.error(f"创建MCP客户端失败: {str(e)}")
+            logger.error(f"创建MCP客户端失败: {e!s}")
             return None
-    
-    async def get_mcp_tools(self) -> Optional[List]:
+
+    async def get_mcp_tools(self) -> list | None:
         """
         获取MCP可用的工具
         :return: 工具列表
         """
         try:
+            import asyncio
+            try:
+                # Check if we're in an async context
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                # No running loop, create a new one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
             client = self.get_mcp_client()
             if client:
                 tools = await client.get_tools()
                 return tools
             return None
         except Exception as e:
-            logger.error(f"获取MCP工具失败: {str(e)}")
+            # This is expected when not in an async context
+            if "Not currently running on any asynchronous event loop" in str(e):
+                logger.debug("获取MCP工具: 需要异步上下文")
+            else:
+                logger.warning(f"获取MCP工具失败: {e!s}")
             return None
-    
-    def get_and_classify_entities(self) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, List[Dict[str, Any]]]]]:
+
+    def get_mcp_tools_sync(self) -> list | None:
+        """
+        获取MCP可用的工具（同步版本）
+        :return: 工具列表
+        """
+        try:
+            import asyncio
+            try:
+                loop = asyncio.get_running_loop()
+                # If we're in an async context, we can't use asyncio.run
+                logger.warning("已在异步上下文中，无法使用同步方法获取MCP工具")
+                return None
+            except RuntimeError:
+                # No running loop, safe to create one
+                pass
+
+            async def _get_tools():
+                return await self.get_mcp_tools()
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(_get_tools())
+            finally:
+                loop.close()
+        except Exception as e:
+            logger.error(f"同步获取MCP工具失败: {e!s}")
+            return None
+
+    def get_and_classify_entities(self) -> tuple[dict[str, Any] | None, dict[str, list[dict[str, Any]]] | None]:
         """
         获取Home Assistant中所有实体，并进行分类
         :return: (sensor实体分类结果, 非sensor实体分类结果)
@@ -160,13 +205,13 @@ class HomeAssistantManager:
             logger.error("连接异常！无法连接到Home Assistant服务器")
             return None, None
         except Exception as e:
-            logger.error(f"请求异常！原因：{str(e)}")
+            logger.error(f"请求异常！原因：{e!s}")
             return None, None
 
         # 分离sensor和非sensor实体
         sensor_entities = [entity for entity in all_entities if entity["entity_id"].startswith("sensor.")]
         non_sensor_entities = [entity for entity in all_entities if not entity["entity_id"].startswith("sensor.")]
-        
+
         # 处理sensor实体
         valid_sensors = []  # 存储状态有效的传感器
         invalid_sensors = []  # 存储状态无效的传感器
@@ -197,7 +242,7 @@ class HomeAssistantManager:
         # 对有效传感器按"数值型"和"文本型"分类
         numeric_sensors = []  # 数值型传感器
         text_sensors = []     # 文本型传感器
-        
+
         for sensor in valid_sensors:
             sensor_state = sensor["state"].strip().lower()
             # 检查是否为数值型
@@ -221,7 +266,7 @@ class HomeAssistantManager:
             try:
                 # 提取实体类型
                 entity_type = entity["entity_id"].split(".")[0]
-                
+
                 # 提取实体关键信息
                 entity_info = {
                     "entity_id": entity["entity_id"],
@@ -229,7 +274,7 @@ class HomeAssistantManager:
                     "state": entity["state"],
                     "last_updated": entity["last_updated"][:19].replace("T", " ")
                 }
-                
+
                 # 为特定实体类型添加额外信息
                 if entity_type == "light":
                     attributes = entity.get("attributes", {})
@@ -238,14 +283,14 @@ class HomeAssistantManager:
                     attributes = entity.get("attributes", {})
                     entity_info["external_attributes"] = attributes
                     entity_info["event_type"] = attributes.get("event_type", "未知")
-                
+
                 # 按类型分组
                 if entity_type not in non_sensor_entities_by_type:
                     non_sensor_entities_by_type[entity_type] = []
                 non_sensor_entities_by_type[entity_type].append(entity_info)
             except Exception as e:
                 # 忽略单个实体处理错误
-                logger.warning(f"处理实体 {entity.get('entity_id', '未知')} 时出错: {str(e)}")
+                logger.warning(f"处理实体 {entity.get('entity_id', '未知')} 时出错: {e!s}")
                 continue
 
         # 构建返回结果
@@ -257,16 +302,16 @@ class HomeAssistantManager:
             "text_sensors_by_group": text_sensors_by_group,
             "invalid_sensors_by_group": invalid_sensors_by_group
         }
-        
+
         return sensor_result, non_sensor_entities_by_type
-    
+
     def get_current_entity_summary(self):
         """
         获取当前实体摘要信息
         :return: 当前实体摘要字符串
         """
         return self.current_entity_summary
-        
+
     def update_entity_data(self) -> str:
         """
         更新实体数据
@@ -274,23 +319,23 @@ class HomeAssistantManager:
         """
         logger.info("正在更新Home Assistant实体数据...")
         sensor_data, non_sensor_data = self.get_and_classify_entities()
-        
+
         # 存储实体数据
         self.entity_data = {
             "sensor_data": sensor_data,
             "non_sensor_data": non_sensor_data
         }
-        
+
         # 准备实体摘要信息
         entity_summary = []
-        
+
         # 添加传感器摘要
         if sensor_data:
             entity_summary.append("## 传感器信息")
             entity_summary.append(f"- 数值型传感器数量: {len(sensor_data.get('numeric_sensors', []))}")
             entity_summary.append(f"- 文本型传感器数量: {len(sensor_data.get('text_sensors', []))}")
             entity_summary.append(f"- 无效传感器数量: {len(sensor_data.get('invalid_sensors', []))}")
-            
+
             # 添加关键数值型传感器示例
             numeric_groups = sensor_data.get('numeric_sensors_by_group', {})
             if numeric_groups:
@@ -299,17 +344,17 @@ class HomeAssistantManager:
                     entity_summary.append(f"- 分组'{group_name}': {len(sensors)}个传感器")
                     for sensor in sensors[:2]:
                         entity_summary.append(f"  - {sensor['friendly_name']} (当前值: {sensor['state']}{sensor.get('unit', '')})")
-        
+
         # 添加非传感器实体摘要
         if non_sensor_data:
             entity_summary.append("\n## 非传感器实体信息")
-            
+
             # 按类型统计
             entity_types = []
             for entity_type, entities in non_sensor_data.items():
                 entity_types.append(f"- {entity_type}: {len(entities)}个")
             entity_summary.extend(entity_types)
-            
+
             # 添加关键实体类型的详细信息
             for key_type in ['light', 'switch', 'binary_sensor']:
                 if key_type in non_sensor_data:
@@ -321,12 +366,12 @@ class HomeAssistantManager:
                         entity_summary.append(f"- 分组'{group_name}': {len(group_entities)}个实体")
                         for entity in group_entities[:3]:
                             entity_summary.append(f"  - {entity.get('friendly_name', entity.get('entity_id', '未知'))} (状态: {entity.get('state', '未知')})")
-        
+
         self.current_entity_summary = "\n".join(entity_summary)
         logger.info(f"实体数据更新完成, 总共 {len(entity_summary)} 条信息")
         return self.current_entity_summary
-    
-    def export_to_excel(self, sensor_data: Dict[str, Any], non_sensor_data: Dict[str, List[Dict[str, Any]]]) -> Optional[str]:
+
+    def export_to_excel(self, sensor_data: dict[str, Any], non_sensor_data: dict[str, list[dict[str, Any]]]) -> str | None:
         """
         将实体数据导出到Excel文件
         :param sensor_data: 传感器数据
@@ -337,19 +382,19 @@ class HomeAssistantManager:
             # 创建Excel写入器
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"home_assistant_entities_{timestamp}.xlsx"
-            
+
             # 确保输出目录存在
             output_dir_name = os.getenv("OUTPUT_DIR", "output")
             output_dir = os.path.join(os.getcwd(), output_dir_name)
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
-            
+
             file_path = os.path.join(output_dir, filename)
-            
+
             with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
                 # 1. 实体分类工作表
                 all_entity_data = []
-                
+
                 # 处理sensor类型实体
                 # 数值型传感器（已分组）
                 for group_name, sensors in sensor_data.get("numeric_sensors_by_group", {}).items():
@@ -378,7 +423,7 @@ class HomeAssistantManager:
                             "单位": sensor.get("unit", "无单位"),
                             "最后更新时间": sensor["last_updated"]
                         })
-                
+
                 # 无效传感器（已分组）
                 for group_name, sensors in sensor_data.get("invalid_sensors_by_group", {}).items():
                     for sensor in sensors:
@@ -392,7 +437,7 @@ class HomeAssistantManager:
                             "单位": "无单位",
                             "最后更新时间": sensor.get("last_updated", "未知")
                         })
-                
+
                 # 添加非sensor类型实体
                 for entity_type, entities in sorted(non_sensor_data.items()):
                     # 对每个实体类型进行分组处理
@@ -407,7 +452,7 @@ class HomeAssistantManager:
                                 subtype = "灯光"
                             elif entity_type == "event":
                                 subtype = "事件"
-                            
+
                             entity_row = {
                                 "分组": group_name,
                                 "实体类型": entity_type,
@@ -418,7 +463,7 @@ class HomeAssistantManager:
                                 "单位": "无单位",
                                 "最后更新时间": entity["last_updated"]
                             }
-                            
+
                             # 为特定实体类型添加额外列
                             try:
                                 if entity_type == "light":
@@ -428,15 +473,15 @@ class HomeAssistantManager:
                                     entity_row["事件类型"] = entity.get("event_type", "未知")
                             except Exception:
                                 pass
-                            
+
                             all_entity_data.append(entity_row)
-                
+
                 # 创建实体分类工作表并按分组排序
                 if all_entity_data:
                     df_entities = pd.DataFrame(all_entity_data)
                     df_entities = df_entities.sort_values(by=["分组", "实体类型"])
                     df_entities.to_excel(writer, sheet_name="实体分类", index=False)
-                    
+
                     # 自动调整列宽
                     worksheet = writer.sheets["实体分类"]
                     for column in worksheet.columns:
@@ -452,7 +497,7 @@ class HomeAssistantManager:
                         worksheet.column_dimensions[column_letter].width = adjusted_width
             return file_path
         except Exception as e:
-            logger.error(f"导出Excel失败: {str(e)}")
+            logger.error(f"导出Excel失败: {e!s}")
             return None
 
 # 创建全局的HomeAssistantManager实例

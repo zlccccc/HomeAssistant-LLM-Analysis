@@ -6,3 +6,11 @@ logs
 README.md
 .vscode/settings.json
 .DS_Store
+*.egg-info
+data
+openspec
+uv.lock
+.claude/settings.local*
+coverage/
+htmlcov/
+.coverage

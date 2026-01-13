@@ -1,0 +1,27 @@
+[coverage/run]
+source = backend
+source = frontend
+omit =
+    */__init__.py
+    */test_*.py
+    */conftest.py
+data_file = coverage/.coverage
+
+[coverage/report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+
+[coverage html]
+directory = coverage/html
+
+[coverage xml]
+output = coverage/coverage.xml
+
+[coverage json]
+output = coverage/coverage.json

@@ -1,0 +1,68 @@
+# Pre-commit hooks configuration
+# Install pre-commit hooks with: uv run pre-commit install
+# Run all hooks manually: uv run pre-commit run --all-files
+repos:
+  # General pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace        # Trim trailing whitespace
+      - id: end-of-file-fixer          # Ensure file ends with newline
+      - id: check-yaml                 # Check YAML files syntax
+      - id: check-toml                 # Check TOML files syntax
+      - id: check-json                 # Check JSON files syntax
+      - id: check-added-large-files    # Prevent large files from being committed
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict       # Check for merge conflict markers
+      - id: check-case-conflict        # Check for case conflicts
+      - id: detect-private-key         # Detect private keys
+      - id: mixed-line-ending          # Fix mixed line endings
+      - id: debug-statements           # Check for debugger statements
+
+  # Ruff - Fast Python linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff                       # Run the linter
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format                # Run the formatter
+
+  # Black - Python code formatter (as alternative to ruff format)
+  # Uncomment if you prefer black over ruff format
+  # - repo: https://github.com/psf/black
+  #   rev: 24.10.0
+  #   hooks:
+  #     - id: black
+
+  # MyPy - Static type checker
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - pydantic>=2.0.0
+          - types-requests
+        args: [--ignore-missing-imports, --warn-unused-ignores]
+        exclude: ^(test/|\.venv/)
+
+  # Bandit - Security linter
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.0
+    hooks:
+      - id: bandit
+        args: ['-c', 'pyproject.toml']
+        additional_dependencies: ['bandit[toml]']
+        exclude: ^test/
+
+# Configuration for CI/CD
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false

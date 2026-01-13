@@ -69,6 +69,16 @@ class LLMManager:
 
         Returns:
             生成的回复内容
+
+        Example:
+            >>> manager = LLMManager()
+            >>> messages = [
+            ...     {"role": "system", "content": "你是一个助手"},
+            ...     {"role": "user", "content": "你好"}
+            ... ]
+            >>> response = manager.call_openai_api(messages)
+            >>> print(response)
+            "你好！有什么我可以帮助您的吗？"
         """
         try:
             # 将消息转换为langchain消息对象

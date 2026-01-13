@@ -17,16 +17,25 @@ from frontend.api_layer.qwen_speech_model import qwen_speech_manager
 dotenv.load_dotenv(".env")
 
 
+def get_entity_data() -> dict:
+    """
+    获取实体数据，确保返回非空的字典
+
+    Returns:
+        包含 sensor_data 和 non_sensor_data 的字典，如果未初始化则返回空字典
+    """
+    if hass_manager.entity_data is None:
+        return {"sensor_data": {}, "non_sensor_data": {}}
+    return hass_manager.entity_data
+
+
 # 设备控制选项卡相关函数
 def update_entity_groups(device_type: str) -> tuple[gr.Dropdown, gr.Dropdown, gr.Textbox]:
     """
     更新设备分组下拉框
     """
-    # 确保entity_data不为None
-    if hass_manager.entity_data is None:
-        hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
-
-    non_sensor_data = hass_manager.entity_data.get("non_sensor_data", {})
+    entity_data = get_entity_data()
+    non_sensor_data = entity_data.get("non_sensor_data", {})
     if not device_type or device_type not in non_sensor_data:
         return (
             gr.Dropdown(choices=[], value=""),
@@ -48,11 +57,8 @@ def update_entity_list(device_type: str, group_name: str) -> tuple[gr.Dropdown, 
     """
     更新设备列表下拉框
     """
-    # 确保entity_data不为None
-    if hass_manager.entity_data is None:
-        hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
-
-    non_sensor_data = hass_manager.entity_data.get("non_sensor_data", {})
+    entity_data = get_entity_data()
+    non_sensor_data = entity_data.get("non_sensor_data", {})
     if not device_type or not group_name or device_type not in non_sensor_data:
         return gr.Dropdown(choices=[], value=""), gr.Textbox(value="")
 
@@ -74,11 +80,8 @@ def update_entity_status(device_type: str, group_name: str, entity_name: str) ->
     """
     更新设备状态显示
     """
-    # 确保entity_data不为None
-    if hass_manager.entity_data is None:
-        hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
-
-    non_sensor_data = hass_manager.entity_data.get("non_sensor_data", {})
+    entity_data = get_entity_data()
+    non_sensor_data = entity_data.get("non_sensor_data", {})
     if not device_type or not group_name or not entity_name or device_type not in non_sensor_data:
         return gr.Textbox(value="")
 
@@ -104,11 +107,8 @@ def control_entity(
     """
     控制设备状态
     """
-    # 确保entity_data不为None
-    if hass_manager.entity_data is None:
-        hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
-
-    non_sensor_data = hass_manager.entity_data.get("non_sensor_data", {})
+    entity_data = get_entity_data()
+    non_sensor_data = entity_data.get("non_sensor_data", {})
     if not device_type or not group_name or not entity_name or device_type not in non_sensor_data:
         return gr.Textbox(value="控制失败：参数无效"), gr.Textbox(value="")
 
@@ -122,15 +122,12 @@ def control_entity(
                 current_state = entity.get("state", "未知")
                 new_state = "off" if current_state == "on" else "on"
 
-                # 调用Home Assistant服务
                 success_message = hass_manager.call_home_assistant_service(
                     entity_id, f"turn_{new_state}"
                 )
 
                 if "成功" in success_message:
-                    # 更新实体数据
                     hass_manager.update_entity_data()
-                    # 重新获取状态
                     status_text = update_entity_status(device_type, group_name, entity_name).value
                     return gr.Textbox(
                         value=f"控制成功：已将 {entity_name} {new_state}"
@@ -145,17 +142,11 @@ def refresh_device_list() -> tuple[gr.Dropdown, gr.Dropdown, gr.Dropdown, gr.Tex
     """
     刷新设备列表
     """
-    # 确保entity_data不为None
-    if hass_manager.entity_data is None:
-        hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
-
     hass_manager.update_entity_data()
-    non_sensor_data = (
-        hass_manager.entity_data.get("non_sensor_data", {}) if hass_manager.entity_data else {}
-    )
+    entity_data = get_entity_data()
+    non_sensor_data = entity_data.get("non_sensor_data", {})
     device_types = list(non_sensor_data.keys())
 
-    # 确保即使没有设备类型，也不会有空值警告
     choices = device_types if device_types else ["无可用设备"]
     value = device_types[0] if device_types else ""
 
@@ -174,17 +165,10 @@ def create_device_control_tab():
     """
     创建设备控制选项卡
     """
-    # Ensure entity data is loaded, even if from cache or default values
-    if hass_manager.entity_data is None:
-        hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
-
-    # 获取设备类型列表 - with extra safety check
-    non_sensor_data = (
-        hass_manager.entity_data.get("non_sensor_data", {}) if hass_manager.entity_data else {}
-    )
+    entity_data = get_entity_data()
+    non_sensor_data = entity_data.get("non_sensor_data", {})
     device_types = list(non_sensor_data.keys()) if non_sensor_data else []
 
-    # 设备类型选择，设置默认值为第一个设备类型（如果有）
     device_type = gr.Dropdown(
         label="设备类型",
         choices=device_types if device_types else ["无可用设备"],
@@ -193,26 +177,18 @@ def create_device_control_tab():
         allow_custom_value=True,
     )
 
-    # 设备分组
     entity_groups = gr.Dropdown(
         label="设备分组", choices=[], value="", interactive=False, allow_custom_value=True
     )
 
-    # 设备列表
     entity_list = gr.Dropdown(
         label="设备列表", choices=[], value="", interactive=False, allow_custom_value=True
     )
 
-    # 设备状态
     entity_status = gr.Textbox(label="设备状态", interactive=False)
-
-    # 控制按钮
     control_btn = gr.Button("切换状态")
-
-    # 控制结果
     control_result = gr.Textbox(label="控制结果", interactive=False)
 
-    # 设置事件处理
     device_type.change(
         fn=update_entity_groups,
         inputs=[device_type],
@@ -237,7 +213,6 @@ def create_device_control_tab():
         outputs=[control_result, entity_status],
     )
 
-    # 刷新按钮
     refresh_btn = gr.Button("刷新设备列表")
     refresh_btn.click(
         fn=refresh_device_list, outputs=[device_type, entity_groups, entity_list, entity_status]
@@ -260,20 +235,26 @@ def create_device_control_tab():
 
 
 # 传感器数据选项卡相关函数
+def _map_sensor_type(sensor_type: str) -> str:
+    """
+    转换UI中的传感器类型名称为后端使用的类型名称
+
+    Args:
+        sensor_type: UI中的类型名称 ("numeric" 或 "text")
+
+    Returns:
+        后端使用的类型名称 ("numeric_sensors" 或 "text_sensors")
+    """
+    sensor_type_map = {"numeric": "numeric_sensors", "text": "text_sensors"}
+    return sensor_type_map.get(sensor_type, "")
+
+
 def update_sensor_groups(sensor_type: str) -> tuple[gr.Dropdown, gr.Dropdown, gr.Textbox]:
     """
     更新传感器分组下拉框
     """
-    # 确保entity_data不为None
-    if hass_manager.entity_data is None:
-        hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
-
-    # 转换UI中的类型名称为后端使用的类型名称
-    if sensor_type == "numeric":
-        backend_sensor_type = "numeric_sensors"
-    elif sensor_type == "text":
-        backend_sensor_type = "text_sensors"
-    else:
+    backend_sensor_type = _map_sensor_type(sensor_type)
+    if not backend_sensor_type:
         return (
             gr.Dropdown(choices=[], value=""),
             gr.Dropdown(choices=[], value=""),
@@ -281,7 +262,8 @@ def update_sensor_groups(sensor_type: str) -> tuple[gr.Dropdown, gr.Dropdown, gr
         )
 
     sensor_key = f"{backend_sensor_type}_by_group"
-    sensor_data = hass_manager.entity_data.get("sensor_data", {})
+    entity_data = get_entity_data()
+    sensor_data = entity_data.get("sensor_data", {})
     if sensor_key in sensor_data:
         groups = list(sensor_data.get(sensor_key, {}).keys())
         return (
@@ -301,23 +283,13 @@ def update_sensor_list(sensor_type: str, group_name: str) -> tuple[gr.Dropdown, 
     """
     更新传感器列表下拉框
     """
-    # 确保entity_data不为None
-    if hass_manager.entity_data is None:
-        hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
-
-    # 转换UI中的类型名称为后端使用的类型名称
-    if sensor_type == "numeric":
-        backend_sensor_type = "numeric_sensors"
-    elif sensor_type == "text":
-        backend_sensor_type = "text_sensors"
-    else:
-        return gr.Dropdown(choices=[], value=""), gr.Textbox(value="")
-
-    if not group_name:
+    backend_sensor_type = _map_sensor_type(sensor_type)
+    if not backend_sensor_type or not group_name:
         return gr.Dropdown(choices=[], value=""), gr.Textbox(value="")
 
     sensor_key = f"{backend_sensor_type}_by_group"
-    sensor_data = hass_manager.entity_data.get("sensor_data", {})
+    entity_data = get_entity_data()
+    sensor_data = entity_data.get("sensor_data", {})
     if sensor_key in sensor_data and group_name in sensor_data.get(sensor_key, {}):
         sensors = sensor_data.get(sensor_key, {}).get(group_name, [])
         sensor_choices = [s.get("friendly_name", s.get("entity_id", "未知")) for s in sensors]
@@ -332,23 +304,13 @@ def update_sensor_info(sensor_type: str, group_name: str, sensor_name: str) -> g
     """
     更新传感器信息显示
     """
-    # 确保entity_data不为None
-    if hass_manager.entity_data is None:
-        hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
-
-    # 转换UI中的类型名称为后端使用的类型名称
-    if sensor_type == "numeric":
-        backend_sensor_type = "numeric_sensors"
-    elif sensor_type == "text":
-        backend_sensor_type = "text_sensors"
-    else:
-        return gr.Textbox(value="")
-
-    if not group_name or not sensor_name:
+    backend_sensor_type = _map_sensor_type(sensor_type)
+    if not backend_sensor_type or not group_name or not sensor_name:
         return gr.Textbox(value="")
 
     sensor_key = f"{backend_sensor_type}_by_group"
-    sensor_data = hass_manager.entity_data.get("sensor_data", {})
+    entity_data = get_entity_data()
+    sensor_data = entity_data.get("sensor_data", {})
     if sensor_key in sensor_data and group_name in sensor_data.get(sensor_key, {}):
         for sensor in sensor_data.get(sensor_key, {}).get(group_name, []):
             if sensor.get("friendly_name", sensor.get("entity_id", "未知")) == sensor_name:
@@ -357,7 +319,6 @@ def update_sensor_info(sensor_type: str, group_name: str, sensor_name: str) -> g
                 unit = sensor.get("unit_of_measurement", sensor.get("unit", ""))
                 last_updated = sensor.get("last_updated", "未知")
 
-                # 创建包含更多详细信息的显示内容
                 sensor_info_lines = [
                     f"实体ID: {entity_id}",
                     f"友好名称: {sensor.get('friendly_name', '未知')}",
@@ -365,13 +326,11 @@ def update_sensor_info(sensor_type: str, group_name: str, sensor_name: str) -> g
                     f"最后更新: {last_updated}",
                 ]
 
-                # 检查是否有更多属性可以显示
                 if "external_attributes" in sensor:
                     ext_attrs = sensor["external_attributes"]
                     if ext_attrs:
                         sensor_info_lines.append("\n额外属性:")
                         for attr_name, attr_value in ext_attrs.items():
-                            # 避免显示过长的属性值
                             if isinstance(attr_value, str) and len(attr_value) > 50:
                                 attr_value = attr_value[:50] + "..."
                             sensor_info_lines.append(f"  - {attr_name}: {attr_value}")
@@ -386,23 +345,17 @@ def analyze_all_entities() -> gr.Textbox:
     分析所有实体
     """
     try:
-        # 确保entity_data不为None
-        if hass_manager.entity_data is None:
-            hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
-
-        # 更新实体数据
         hass_manager.update_entity_data()
 
-        # 分析实体（使用hass_llm_controller）
-        sensor_data = hass_manager.entity_data.get("sensor_data", {})
-        non_sensor_data = hass_manager.entity_data.get("non_sensor_data", {})
+        entity_data = get_entity_data()
+        sensor_data = entity_data.get("sensor_data", {})
+        non_sensor_data = entity_data.get("non_sensor_data", {})
 
         summary, analysis = hass_llm_controller.analyze_entities(
             sensor_data,
             non_sensor_data,
         )
 
-        # 保存结果（使用hass_llm_controller）
         summary_file, analysis_file = hass_llm_controller.save_analysis_results(summary, analysis)
 
         if summary_file and analysis_file:
@@ -419,12 +372,7 @@ def refresh_sensor_list() -> tuple[gr.Dropdown, gr.Dropdown, gr.Dropdown, gr.Tex
     """
     刷新传感器列表
     """
-    # 确保entity_data不为None
-    if hass_manager.entity_data is None:
-        hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
-
     hass_manager.update_entity_data()
-    # UI中使用的传感器类型是'numeric'和'text'
     return (
         gr.Dropdown(
             choices=["numeric", "text"], value="numeric", interactive=True, allow_custom_value=True
@@ -440,11 +388,6 @@ def create_sensor_data_tab():
     """
     创建传感器数据选项卡
     """
-    # Ensure entity data is loaded, even if from cache or default values
-    if hass_manager.entity_data is None:
-        hass_manager.entity_data = {"sensor_data": {}, "non_sensor_data": {}}
-
-    # 传感器类型选择，使用简化的类型名称
     sensor_type = gr.Dropdown(
         label="传感器类型",
         choices=["numeric", "text"],
@@ -453,26 +396,18 @@ def create_sensor_data_tab():
         allow_custom_value=True,
     )
 
-    # 传感器分组
     sensor_groups = gr.Dropdown(
         label="传感器分组", choices=[], value="", interactive=False, allow_custom_value=True
     )
 
-    # 传感器列表
     sensor_list = gr.Dropdown(
         label="传感器列表", choices=[], value="", interactive=False, allow_custom_value=True
     )
 
-    # 传感器信息
     sensor_info = gr.Textbox(label="传感器信息", interactive=False)
-
-    # 分析按钮
     analyze_btn = gr.Button("分析所有实体")
-
-    # 分析结果
     analyze_result = gr.Textbox(label="分析结果", interactive=False)
 
-    # 设置事件处理
     sensor_type.change(
         fn=update_sensor_groups,
         inputs=[sensor_type],
@@ -493,7 +428,6 @@ def create_sensor_data_tab():
 
     analyze_btn.click(fn=analyze_all_entities, outputs=[analyze_result])
 
-    # 刷新按钮
     refresh_btn = gr.Button("刷新传感器列表")
     refresh_btn.click(
         fn=refresh_sensor_list, outputs=[sensor_type, sensor_groups, sensor_list, sensor_info]
@@ -519,46 +453,32 @@ async def process_message_wrapper(message: str, history: list) -> list[dict]:
     """
     处理用户消息并生成响应，返回符合Gradio Chatbot格式的历史记录
     """
-    # 确保entity_data不为None
-    if hass_manager.entity_data is None:
-        hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
-
-    # 更新实体数据，确保设备列表是最新的
     hass_manager.update_entity_data()
 
-    # 规范化历史记录格式为dict格式
     normalized_history = []
     for h in history:
         if isinstance(h, dict) and "role" in h and "content" in h:
-            # 已经是dict格式
             normalized_history.append(h)
         elif isinstance(h, (tuple, list)) and len(h) == 2:
-            # 旧的tuple格式 (user_message, assistant_message)
-            # 转换为dict格式
             normalized_history.append({"role": "user", "content": h[0]})
             normalized_history.append({"role": "assistant", "content": h[1]})
         else:
-            # 其他情况，尝试作为dict处理
             normalized_history.append(h)
 
-    # 调用process_message方法（使用hass_llm_controller）
     response = await hass_llm_controller.process_home_assistant_message(message, normalized_history)
 
-    # 添加新的消息到历史记录
     updated_history = [
         *normalized_history,
         {"role": "user", "content": message},
         {"role": "assistant", "content": response},
     ]
 
-    # 自动生成并播放语音回复
     try:
         import tempfile
 
         temp_dir = tempfile.gettempdir()
         output_file = str(Path(temp_dir) / "auto_response_audio.wav")
 
-        # 调用语音合成服务，使用默认语音类型
         success = qwen_speech_manager.text_to_audio(response, output_file, voice="female")
         if success:
             logger.info("自动生成语音回复成功")
@@ -588,46 +508,33 @@ def create_chat_tab():
     # 添加语音识别状态显示
     recognition_status = gr.Textbox(label="语音识别状态", interactive=False, value="就绪")
 
-    # 新增自动提交功能的语音识别函数
     async def recognize_and_auto_submit(audio, chat_history):
         if not audio:
             return "", "请先录制语音", chat_history
 
-        # 更新状态
         status = "正在进行语音识别..."
         logger.info(f"开始识别语音文件: {audio}")
 
         try:
-            # 检查文件是否存在
             audio_path = Path(audio)
 
             if not audio_path.exists():
                 return "", "错误：录音文件不存在或已损坏", chat_history
 
-            # 获取文件大小，确保文件不为空
             if audio_path.stat().st_size == 0:
                 return "", "错误：录音文件内容为空", chat_history
 
-            # 调用语音识别服务
             text = qwen_speech_manager.audio_to_text(audio)
             if text:
-                # 语音识别成功
                 status = f"语音识别成功: {text[:30]}...，正在自动提交..."
 
-                # 确保entity_data不为None
-                if hass_manager.entity_data is None:
-                    hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
-
-                # 更新实体数据，确保设备列表是最新的
                 hass_manager.update_entity_data()
 
-                # 调用process_message_wrapper函数处理消息并生成回复，这样会包含TTS生成
                 updated_history = await process_message_wrapper(text, chat_history)
 
                 status = f"语音识别成功: {text[:30]}...，已自动提交并生成回复"
                 return text, status, updated_history
             else:
-                # 语音识别失败
                 return "", "语音识别失败：可能是API密钥配置问题或网络连接问题", chat_history
         except Exception as e:
             error_msg = f"语音识别出错: {e!s}"

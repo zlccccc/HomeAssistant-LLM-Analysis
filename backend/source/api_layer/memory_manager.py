@@ -89,9 +89,22 @@ class MemoryManager:
         """
         记忆对话消息（存储过程）
 
-        :param messages: 要记忆的消息列表，格式如：
-            [{"role": "user", "content": "hello"}, {"role": "assistant", "content": "hi"}]
-        :return: 记忆结果
+        Args:
+            messages: 要记忆的消息列表，格式如：
+                [{"role": "user", "content": "hello"}, {"role": "assistant", "content": "hi"}]
+
+        Returns:
+            记忆结果字典，包含状态和记忆的消息数量
+
+        Example:
+            >>> manager = MemoryManager()
+            >>> messages = [
+            ...     {"role": "user", "content": "我喜欢咖啡"},
+            ...     {"role": "assistant", "content": "好的，记住了"}
+            ... ]
+            >>> result = await manager.memorize_messages(messages)
+            >>> print(result["status"])
+            "success"
         """
         if self.memory is None:
             logger.info("记忆功能未启用")
@@ -149,8 +162,17 @@ class MemoryManager:
         """
         检索记忆信息（检索过程）
 
-        :param query: 查询文本，如 "chat history", "preferences" 等
-        :return: 格式化的记忆信息字符串
+        Args:
+            query: 查询文本，如 "chat history", "preferences" 等
+
+        Returns:
+            格式化的记忆信息字符串
+
+        Example:
+            >>> manager = MemoryManager()
+            >>> memory_info = await manager.retrieve_memory_info("用户偏好")
+            >>> print(memory_info)
+            "## 记忆分类\\n\\n### 用户偏好\\n用户喜欢喝咖啡..."
         """
         if self.memory is None:
             return ""

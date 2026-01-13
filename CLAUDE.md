@@ -178,4 +178,14 @@ async def process_home_assistant_message(
 - `Example:` section with `>>>` prompt style
 - Show `await` for async functions
 
-**Run Test And Format Process Before Git Push!**
+## Testing Guidelines
+
+### Test Isolation
+
+**Unit tests should not auto-load `.env` or connect to external services**:
+
+- Use `patch.dict(os.environ, {...})` for environment variables
+- Mock external API calls
+- Use `@pytest.mark.requires_ha` or `@pytest.mark.requires_llm` for integration tests
+
+**Before committing, run**: `./scripts/dev.sh test-fast && ./scripts/dev.sh format && ./scripts/dev.sh lint`

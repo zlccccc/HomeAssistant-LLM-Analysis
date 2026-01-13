@@ -107,6 +107,10 @@ ignore = [
     "C901",    # too complex
     "ARG001",  # unused function argument (for test fixtures)
     "ARG002",  # unused method argument
+    "ERA001",  # ignore commented-out code detection for Chinese comments
+    "RUF001",  # ignore full-width character detection in Chinese text
+    "RUF002",  # ignore full-width character detection in Chinese docstrings
+    "RUF003",  # ignore full-width character detection in Chinese comments
 ]
 fixable = ["ALL"]
 unfixable = []

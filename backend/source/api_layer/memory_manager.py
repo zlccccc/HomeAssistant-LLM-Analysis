@@ -1,9 +1,11 @@
+import asyncio
+import contextlib
 import json
 import os
 import tempfile
+from pathlib import Path
 from typing import Any
 
-import asyncio
 from memu.app import MemoryService
 
 from backend.source.base_layer.utils import logger
@@ -19,8 +21,11 @@ class MemoryManager:
     2. 云端模式：使用 MEMU_API_KEY 连接到云端服务（需要额外配置）
     """
 
-    def __init__(self):
-        self.memory = self._build_memory()
+    def __init__(self, auto_initialize: bool = True):
+        if auto_initialize:
+            self.memory = self._build_memory()
+        else:
+            self.memory = None
 
     def _build_memory(self) -> MemoryService | None:
         """
@@ -76,6 +81,7 @@ class MemoryManager:
         except Exception as e:
             logger.error(f"初始化 MemU 记忆客户端失败: {e!s}")
             import traceback
+
             logger.error(f"详细错误: {traceback.format_exc()}")
             return None
 
@@ -96,7 +102,7 @@ class MemoryManager:
 
         try:
             # 将消息转换为临时 JSON 文件（MemU memorize 需要 resource_url）
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
                 json.dump(messages, f, ensure_ascii=False, indent=2)
                 temp_file_path = f.name
 
@@ -108,7 +114,7 @@ class MemoryManager:
                         modality="conversation",
                         user={"user_id": os.environ.get("MEMU_USER_ID", "user001")},
                     ),
-                    timeout=15.0
+                    timeout=15.0,
                 )
                 logger.info(f"成功记忆对话，结果: {result}")
                 return {
@@ -116,15 +122,13 @@ class MemoryManager:
                     "status": "success",
                     "result": result,
                 }
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("记忆操作超时，跳过本次记忆")
                 return {"memorized_count": 0, "status": "timeout", "error": "操作超时"}
             finally:
                 # 清理临时文件
-                try:
-                    os.unlink(temp_file_path)
-                except Exception:
-                    pass
+                with contextlib.suppress(Exception):
+                    Path(temp_file_path).unlink(missing_ok=True)
 
         except Exception as e:
             # Check if this is an async context issue (expected in some scenarios)
@@ -137,6 +141,7 @@ class MemoryManager:
             else:
                 logger.error(f"记忆消息失败: {e!s}")
                 import traceback
+
                 logger.error(f"详细错误: {traceback.format_exc()}")
             return {"memorized_count": 0, "status": "error", "error": error_str}
 
@@ -159,7 +164,7 @@ class MemoryManager:
                     if os.environ.get("MEMU_USER_ID")
                     else None,
                 ),
-                timeout=10.0
+                timeout=10.0,
             )
 
             # 处理检索结果
@@ -197,7 +202,7 @@ class MemoryManager:
             logger.info("成功检索记忆信息")
             return retrieved_prompt
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("检索记忆信息超时，跳过本次检索")
             return ""
         except Exception as e:
@@ -208,10 +213,33 @@ class MemoryManager:
             else:
                 logger.error(f"检索记忆信息失败: {e!s}")
                 import traceback
+
                 logger.error(f"详细错误: {traceback.format_exc()}")
             return ""
 
 
-# 创建全局实例供其他模块使用
-memory_manager = MemoryManager()
+# 创建全局实例（使用延迟初始化）
+_memory_manager: MemoryManager | None = None
+
+
+def get_memory_manager() -> MemoryManager:
+    """获取全局MemoryManager实例（延迟初始化）"""
+    global _memory_manager
+    if _memory_manager is None:
+        _memory_manager = MemoryManager()
+    return _memory_manager
+
+
+# 为了向后兼容，创建一个属性访问器
+class _MemoryManagerProxy:
+    """代理类，用于延迟初始化memory_manager"""
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(get_memory_manager(), name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        setattr(get_memory_manager(), name, value)
+
+
+memory_manager = _MemoryManagerProxy()  # type: ignore[misc]
 logger.info("全局实例 memory_manager 已创建")

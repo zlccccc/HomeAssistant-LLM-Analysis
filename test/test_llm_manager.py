@@ -4,6 +4,7 @@ LLMManager Test Suite
 Tests the LLM API integration module.
 Run with: uv run pytest test/test_llm_manager.py -v
 """
+
 import os
 from unittest.mock import MagicMock, patch
 
@@ -212,9 +213,11 @@ class TestLLMManagerUnit:
 
     def test_global_instance_exists(self):
         """Test that global llm_manager instance exists."""
-        from backend.source.api_layer.llm_manager import llm_manager
-        assert llm_manager is not None
-        assert isinstance(llm_manager, LLMManager)
+        from backend.source.api_layer.llm_manager import get_llm_manager
+
+        manager = get_llm_manager()
+        assert manager is not None
+        assert isinstance(manager, LLMManager)
 
 
 @pytest.mark.requires_llm
@@ -232,9 +235,7 @@ class TestLLMManagerIntegration:
         """Test real API call to LLM service."""
         # This test only runs if API keys are configured
         if os.getenv("QWEN_API_KEY"):
-            messages = [
-                {"role": "user", "content": "Say 'Hello, world!' in Chinese."}
-            ]
+            messages = [{"role": "user", "content": "Say 'Hello, world!' in Chinese."}]
             result = live_manager.call_openai_api(messages)
 
             assert result is not None

@@ -177,3 +177,5 @@ async def process_home_assistant_message(
 - `Returns:` section documenting return value
 - `Example:` section with `>>>` prompt style
 - Show `await` for async functions
+
+**Run Test And Format Process Before Git Push!**

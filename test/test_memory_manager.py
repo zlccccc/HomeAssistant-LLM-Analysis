@@ -4,26 +4,27 @@ Memory Manager Test Script
 This script tests the MemU memory management functionality.
 Run with: uv run python test/test_memory_manager.py
 """
+
 import asyncio
 import os
 import sys
+from pathlib import Path
 
-# Add backend to Python path to import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-# Import after path is set
 from dotenv import load_dotenv
 
-load_dotenv()
+# Add backend to Python path to import modules
+sys.path.insert(0, str(Path(__file__).parent / ".."))
 
 from backend.source.api_layer.memory_manager import memory_manager
+
+load_dotenv()
 
 
 def print_section(title: str):
     """Print a section header."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  {title}")
-    print('='*60)
+    print("=" * 60)
 
 
 def print_result(label: str, success: bool, detail: str = ""):
@@ -39,17 +40,21 @@ async def test_initialization():
     print_section("1. Memory Manager Initialization")
 
     # Check if memory manager exists
-    has_manager = hasattr(memory_manager, 'memory')
+    has_manager = hasattr(memory_manager, "memory")
     print_result("Memory manager object exists", has_manager)
 
     if has_manager:
         is_enabled = memory_manager.memory is not None
         if is_enabled:
-            print_result("Memory service is enabled", True,
-                        f"Type: {type(memory_manager.memory).__name__}")
+            print_result(
+                "Memory service is enabled", True, f"Type: {type(memory_manager.memory).__name__}"
+            )
         else:
-            print_result("Memory service is disabled", False,
-                        "USE_MEMORY_MESSAGES is not 'true' or no API key found")
+            print_result(
+                "Memory service is disabled",
+                False,
+                "USE_MEMORY_MESSAGES is not 'true' or no API key found",
+            )
     return has_manager
 
 
@@ -123,18 +128,16 @@ async def test_retrieve():
         result = await memory_manager.retrieve_memory_info("用户偏好设置")
 
         if result:
-            lines = result.strip().split('\n')
-            print_result("Retrieve memory", True,
-                        f"Retrieved {len(lines)} lines of content")
+            lines = result.strip().split("\n")
+            print_result("Retrieve memory", True, f"Retrieved {len(lines)} lines of content")
             print("\n  --- Retrieved Content Preview ---")
-            preview = '\n  '.join(result.split('\n')[:10])
+            preview = "\n  ".join(result.split("\n")[:10])
             print(f"  {preview}")
-            if len(result.split('\n')) > 10:
+            if len(result.split("\n")) > 10:
                 print("  ... (truncated)")
             print("  --- End Preview ---\n")
         else:
-            print_result("Retrieve memory", False,
-                        "No memory retrieved (may be empty or error)")
+            print_result("Retrieve memory", False, "No memory retrieved (may be empty or error)")
 
     except Exception as e:
         print_result("Retrieve memory", False, f"Exception: {e}")
@@ -197,9 +200,10 @@ async def main():
     except Exception as e:
         print(f"\n\n[Fatal error: {e}]")
         import traceback
+
         traceback.print_exc()
 
-    print("\n" + "="*60 + "\n")
+    print("\n" + "=" * 60 + "\n")
 
 
 if __name__ == "__main__":

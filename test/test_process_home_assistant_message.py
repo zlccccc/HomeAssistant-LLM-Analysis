@@ -4,25 +4,26 @@ Process Home Assistant Message Test Script
 Tests the message processing functionality.
 Run with: uv run python test/test_process_home_assistant_message.py
 """
-import asyncio
-import os
-import sys
 
-# Add backend to Python path to import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import asyncio
+import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Add backend to Python path to import modules
+sys.path.insert(0, str(Path(__file__).parent / ".."))
 
 from backend.source.home_assistant_llm_controller_langgraph import hass_llm_controller_langgraph
+
+load_dotenv()
 
 
 def print_section(title: str):
     """Print a section header."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  {title}")
-    print('='*60)
+    print("=" * 60)
 
 
 def print_result(label: str, success: bool, detail: str = ""):
@@ -39,11 +40,9 @@ async def test_message_processing():
 
     try:
         result = await hass_llm_controller_langgraph.process_home_assistant_message(
-            "Hello, this is a test message",
-            [("Previous message", "Previous response")]
+            "Hello, this is a test message", [("Previous message", "Previous response")]
         )
-        print_result("Message processing", True,
-                    f"Response: {result[:50]}...")
+        print_result("Message processing", True, f"Response: {result[:50]}...")
     except Exception as e:
         print_result("Message processing", False, str(e))
 
@@ -54,11 +53,9 @@ async def test_empty_history():
 
     try:
         result = await hass_llm_controller_langgraph.process_home_assistant_message(
-            "Test message with empty history",
-            []
+            "Test message with empty history", []
         )
-        print_result("Empty history handled", True,
-                    f"Response: {result[:50]}...")
+        print_result("Empty history handled", True, f"Response: {result[:50]}...")
     except Exception as e:
         print_result("Empty history handled", False, str(e))
 
@@ -69,11 +66,9 @@ async def test_none_history():
 
     try:
         result = await hass_llm_controller_langgraph.process_home_assistant_message(
-            "Test message with no history",
-            None
+            "Test message with no history", None
         )
-        print_result("None history handled", True,
-                    f"Response: {result[:50]}...")
+        print_result("None history handled", True, f"Response: {result[:50]}...")
     except Exception as e:
         print_result("None history handled", False, str(e))
 
@@ -97,9 +92,10 @@ async def main():
     except Exception as e:
         print(f"\n\n[Fatal error: {e}]")
         import traceback
+
         traceback.print_exc()
 
-    print("\n" + "="*60 + "\n")
+    print("\n" + "=" * 60 + "\n")
 
 
 if __name__ == "__main__":

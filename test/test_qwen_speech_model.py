@@ -4,7 +4,9 @@ QwenSpeechManager Test Suite
 Tests the Qwen speech model integration module (ASR and TTS).
 Run with: uv run pytest test/test_qwen_speech_model.py -v
 """
+
 import os
+from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
@@ -18,17 +20,19 @@ class TestQwenSpeechManager:
     @pytest.fixture
     def manager(self, mock_llm_config, tmp_path):
         """Create a QwenSpeechManager instance with mocked config."""
-        with patch.dict(os.environ, mock_llm_config, clear=False):
-            with patch.dict(os.environ, {"OUTPUT_DIR": str(tmp_path / "output")}):
-                manager = QwenSpeechManager()
-                yield manager
+        with (
+            patch.dict(os.environ, mock_llm_config, clear=False),
+            patch.dict(os.environ, {"OUTPUT_DIR": str(tmp_path / "output")}),
+        ):
+            manager = QwenSpeechManager()
+            yield manager
 
     @pytest.fixture
     def mock_audio_file(self, tmp_path):
         """Create a mock audio file for testing."""
         audio_file = tmp_path / "test_audio.wav"
         # Create a minimal WAV file (valid header + silence)
-        with open(audio_file, "wb") as f:
+        with (audio_file).open("wb") as f:
             # Write a minimal WAV header
             f.write(b"RIFF")
             f.write((36).to_bytes(4, "little"))  # File size
@@ -50,28 +54,14 @@ class TestQwenSpeechManager:
         """Mock ASR API response."""
         return {
             "output": {
-                "choices": [
-                    {
-                        "message": {
-                            "content": [
-                                {"text": "你好，这是测试识别结果。"}
-                            ]
-                        }
-                    }
-                ]
+                "choices": [{"message": {"content": [{"text": "你好，这是测试识别结果。"}]}}]
             }
         }
 
     @pytest.fixture
     def mock_tts_response(self):
         """Mock TTS API response."""
-        return {
-            "output": {
-                "audio": {
-                    "url": "https://example.com/audio.mp3"
-                }
-            }
-        }
+        return {"output": {"audio": {"url": "https://example.com/audio.mp3"}}}
 
     # ============== Initialization Tests ==============
 
@@ -93,10 +83,13 @@ class TestQwenSpeechManager:
 
     def test_initialization_with_custom_models(self):
         """Test initialization with custom model names."""
-        with patch.dict(os.environ, {
-            "QWEN_ASR_MODEL": "custom-asr-model",
-            "QWEN_TTS_MODEL": "custom-tts-model",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "QWEN_ASR_MODEL": "custom-asr-model",
+                "QWEN_TTS_MODEL": "custom-tts-model",
+            },
+        ):
             manager = QwenSpeechManager()
             assert manager.asr_model == "custom-asr-model"
             assert manager.tts_model == "custom-tts-model"
@@ -120,7 +113,6 @@ class TestQwenSpeechManager:
 
     def test_audio_to_text_with_different_format(self, manager):
         """Test audio to text with different audio format - using temp file."""
-        import os
         import tempfile
 
         # Create a temporary mp3 file
@@ -136,8 +128,9 @@ class TestQwenSpeechManager:
             assert result is None or isinstance(result, str)
         finally:
             # Clean up
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
+            temp_path = Path(temp_file)
+            if temp_path.exists():
+                temp_path.unlink()
 
     @patch("frontend.api_layer.qwen_speech_model.requests.post")
     def test_audio_to_text_file_not_found(self, mock_post, manager):
@@ -184,7 +177,9 @@ class TestQwenSpeechManager:
         assert manager.asr_success_count == 1
 
     @patch("frontend.api_layer.qwen_speech_model.requests.post")
-    def test_audio_to_text_updates_stats(self, mock_post, manager, mock_audio_file, mock_asr_response):
+    def test_audio_to_text_updates_stats(
+        self, mock_post, manager, mock_audio_file, mock_asr_response
+    ):
         """Test that ASR updates statistics."""
 
         mock_response = MagicMock()
@@ -277,7 +272,9 @@ class TestQwenSpeechManager:
 
     @patch("frontend.api_layer.qwen_speech_model.requests.post")
     @patch("frontend.api_layer.qwen_speech_model.requests.get")
-    def test_text_to_audio_download_failure(self, mock_get, mock_post, manager, tmp_path, mock_tts_response):
+    def test_text_to_audio_download_failure(
+        self, mock_get, mock_post, manager, tmp_path, mock_tts_response
+    ):
         """Test text to audio when audio download fails."""
         mock_post_response = MagicMock()
         mock_post_response.status_code = 200
@@ -363,11 +360,12 @@ class TestQwenSpeechManager:
         }
 
         for voice, expected in expected_mapping.items():
-            with patch("frontend.api_layer.qwen_speech_model.requests.post") as mock_post, \
-                 patch("frontend.api_layer.qwen_speech_model.requests.get") as mock_get, \
-                 patch("builtins.open", mock_open()), \
-                 patch.object(manager, "_play_audio"):
-
+            with (
+                patch("frontend.api_layer.qwen_speech_model.requests.post") as mock_post,
+                patch("frontend.api_layer.qwen_speech_model.requests.get") as mock_get,
+                patch("builtins.open", mock_open()),
+                patch.object(manager, "_play_audio"),
+            ):
                 mock_post_response = MagicMock()
                 mock_post_response.status_code = 200
                 mock_post.return_value = mock_post_response
@@ -394,6 +392,7 @@ class TestQwenSpeechManager:
         manager.tts_failure_count = 1
 
         import time
+
         manager.last_asr_time = time.time() - 100
         manager.last_tts_time = time.time() - 50
 
@@ -416,7 +415,7 @@ class TestQwenSpeechManager:
 
     def test_play_audio_method_exists(self, manager):
         """Test that _play_audio method exists."""
-        assert hasattr(manager, '_play_audio')
+        assert hasattr(manager, "_play_audio")
         assert callable(manager._play_audio)
 
 

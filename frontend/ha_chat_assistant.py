@@ -1,8 +1,6 @@
+from pathlib import Path
+
 import dotenv
-
-# Load environment variables BEFORE importing modules that depend on them
-dotenv.load_dotenv(".env")
-
 import gradio as gr
 
 # 导入模块化组件
@@ -15,6 +13,10 @@ from backend.source.home_assistant_llm_controller_langgraph import (
 )
 from frontend.api_layer.qwen_speech_model import qwen_speech_manager
 
+# Load environment variables BEFORE importing modules that depend on them
+dotenv.load_dotenv(".env")
+
+
 # 设备控制选项卡相关函数
 def update_entity_groups(device_type: str) -> tuple[gr.Dropdown, gr.Dropdown, gr.Textbox]:
     """
@@ -26,14 +28,21 @@ def update_entity_groups(device_type: str) -> tuple[gr.Dropdown, gr.Dropdown, gr
 
     non_sensor_data = hass_manager.entity_data.get("non_sensor_data", {})
     if not device_type or device_type not in non_sensor_data:
-        return gr.Dropdown(choices=[], value=""), gr.Dropdown(choices=[], value=""), gr.Textbox(value="")
+        return (
+            gr.Dropdown(choices=[], value=""),
+            gr.Dropdown(choices=[], value=""),
+            gr.Textbox(value=""),
+        )
 
     entities = non_sensor_data.get(device_type, [])
     groups = list(hass_manager.group_entities_by_name(entities).keys())
 
-    return gr.Dropdown(choices=groups, value=groups[0] if groups else ""), \
-           gr.Dropdown(choices=[], value=""), \
-           gr.Textbox(value="请选择设备分组和设备")
+    return (
+        gr.Dropdown(choices=groups, value=groups[0] if groups else ""),
+        gr.Dropdown(choices=[], value=""),
+        gr.Textbox(value="请选择设备分组和设备"),
+    )
+
 
 def update_entity_list(device_type: str, group_name: str) -> tuple[gr.Dropdown, gr.Textbox]:
     """
@@ -51,11 +60,15 @@ def update_entity_list(device_type: str, group_name: str) -> tuple[gr.Dropdown, 
     grouped = hass_manager.group_entities_by_name(entities)
 
     if group_name in grouped:
-        entity_choices = [e.get("friendly_name", e.get("entity_id", "未知")) for e in grouped[group_name]]
-        return gr.Dropdown(choices=entity_choices, value=entity_choices[0] if entity_choices else ""), \
-               gr.Textbox(value="请选择设备查看状态")
+        entity_choices = [
+            e.get("friendly_name", e.get("entity_id", "未知")) for e in grouped[group_name]
+        ]
+        return gr.Dropdown(
+            choices=entity_choices, value=entity_choices[0] if entity_choices else ""
+        ), gr.Textbox(value="请选择设备查看状态")
 
     return gr.Dropdown(choices=[], value=""), gr.Textbox(value="")
+
 
 def update_entity_status(device_type: str, group_name: str, entity_name: str) -> gr.Textbox:
     """
@@ -78,11 +91,16 @@ def update_entity_status(device_type: str, group_name: str, entity_name: str) ->
                 entity_id = entity.get("entity_id", "未知")
                 state = entity.get("state", "未知")
                 last_updated = entity.get("last_updated", "未知")
-                return gr.Textbox(value=f"实体ID: {entity_id}\n状态: {state}\n最后更新: {last_updated}")
+                return gr.Textbox(
+                    value=f"实体ID: {entity_id}\n状态: {state}\n最后更新: {last_updated}"
+                )
 
     return gr.Textbox(value="未找到设备信息")
 
-def control_entity(device_type: str, group_name: str, entity_name: str) -> tuple[gr.Textbox, gr.Textbox]:
+
+def control_entity(
+    device_type: str, group_name: str, entity_name: str
+) -> tuple[gr.Textbox, gr.Textbox]:
     """
     控制设备状态
     """
@@ -105,18 +123,23 @@ def control_entity(device_type: str, group_name: str, entity_name: str) -> tuple
                 new_state = "off" if current_state == "on" else "on"
 
                 # 调用Home Assistant服务
-                success_message = hass_manager.call_home_assistant_service(entity_id, f"turn_{new_state}")
+                success_message = hass_manager.call_home_assistant_service(
+                    entity_id, f"turn_{new_state}"
+                )
 
                 if "成功" in success_message:
                     # 更新实体数据
                     hass_manager.update_entity_data()
                     # 重新获取状态
                     status_text = update_entity_status(device_type, group_name, entity_name).value
-                    return gr.Textbox(value=f"控制成功：已将 {entity_name} {new_state}"), gr.Textbox(value=status_text)
+                    return gr.Textbox(
+                        value=f"控制成功：已将 {entity_name} {new_state}"
+                    ), gr.Textbox(value=status_text)
                 else:
                     return gr.Textbox(value=f"控制失败：{success_message}"), gr.Textbox(value="")
 
     return gr.Textbox(value=f"控制失败：未找到设备 {entity_name}"), gr.Textbox(value="")
+
 
 def refresh_device_list() -> tuple[gr.Dropdown, gr.Dropdown, gr.Dropdown, gr.Textbox]:
     """
@@ -127,17 +150,24 @@ def refresh_device_list() -> tuple[gr.Dropdown, gr.Dropdown, gr.Dropdown, gr.Tex
         hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
 
     hass_manager.update_entity_data()
-    non_sensor_data = hass_manager.entity_data.get("non_sensor_data", {}) if hass_manager.entity_data else {}
+    non_sensor_data = (
+        hass_manager.entity_data.get("non_sensor_data", {}) if hass_manager.entity_data else {}
+    )
     device_types = list(non_sensor_data.keys())
 
     # 确保即使没有设备类型，也不会有空值警告
     choices = device_types if device_types else ["无可用设备"]
     value = device_types[0] if device_types else ""
 
-    return gr.Dropdown(choices=choices, value=value, interactive=bool(device_types), allow_custom_value=True), \
-           gr.Dropdown(choices=[], value="", interactive=False, allow_custom_value=True), \
-           gr.Dropdown(choices=[], value="", interactive=False, allow_custom_value=True), \
-           gr.Textbox(value="设备列表已刷新")
+    return (
+        gr.Dropdown(
+            choices=choices, value=value, interactive=bool(device_types), allow_custom_value=True
+        ),
+        gr.Dropdown(choices=[], value="", interactive=False, allow_custom_value=True),
+        gr.Dropdown(choices=[], value="", interactive=False, allow_custom_value=True),
+        gr.Textbox(value="设备列表已刷新"),
+    )
+
 
 # 创建设备控制选项卡
 def create_device_control_tab():
@@ -149,7 +179,9 @@ def create_device_control_tab():
         hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
 
     # 获取设备类型列表 - with extra safety check
-    non_sensor_data = hass_manager.entity_data.get("non_sensor_data", {}) if hass_manager.entity_data else {}
+    non_sensor_data = (
+        hass_manager.entity_data.get("non_sensor_data", {}) if hass_manager.entity_data else {}
+    )
     device_types = list(non_sensor_data.keys()) if non_sensor_data else []
 
     # 设备类型选择，设置默认值为第一个设备类型（如果有）
@@ -158,25 +190,17 @@ def create_device_control_tab():
         choices=device_types if device_types else ["无可用设备"],
         value=device_types[0] if device_types else "",
         interactive=bool(device_types),
-        allow_custom_value=True
+        allow_custom_value=True,
     )
 
     # 设备分组
     entity_groups = gr.Dropdown(
-        label="设备分组",
-        choices=[],
-        value="",
-        interactive=False,
-        allow_custom_value=True
+        label="设备分组", choices=[], value="", interactive=False, allow_custom_value=True
     )
 
     # 设备列表
     entity_list = gr.Dropdown(
-        label="设备列表",
-        choices=[],
-        value="",
-        interactive=False,
-        allow_custom_value=True
+        label="设备列表", choices=[], value="", interactive=False, allow_custom_value=True
     )
 
     # 设备状态
@@ -192,32 +216,31 @@ def create_device_control_tab():
     device_type.change(
         fn=update_entity_groups,
         inputs=[device_type],
-        outputs=[entity_groups, entity_list, entity_status]
+        outputs=[entity_groups, entity_list, entity_status],
     )
 
     entity_groups.change(
         fn=update_entity_list,
         inputs=[device_type, entity_groups],
-        outputs=[entity_list, entity_status]
+        outputs=[entity_list, entity_status],
     )
 
     entity_list.change(
         fn=update_entity_status,
         inputs=[device_type, entity_groups, entity_list],
-        outputs=[entity_status]
+        outputs=[entity_status],
     )
 
     control_btn.click(
         fn=control_entity,
         inputs=[device_type, entity_groups, entity_list],
-        outputs=[control_result, entity_status]
+        outputs=[control_result, entity_status],
     )
 
     # 刷新按钮
     refresh_btn = gr.Button("刷新设备列表")
     refresh_btn.click(
-        fn=refresh_device_list,
-        outputs=[device_type, entity_groups, entity_list, entity_status]
+        fn=refresh_device_list, outputs=[device_type, entity_groups, entity_list, entity_status]
     )
 
     with gr.Column():
@@ -225,8 +248,16 @@ def create_device_control_tab():
         gr.Row([device_type, entity_groups])
         gr.Row([entity_list, entity_status])
         gr.Row([control_btn, refresh_btn])
-        control_result
-    return device_type, entity_groups, entity_list, entity_status, control_btn, refresh_btn, control_result
+    return (
+        device_type,
+        entity_groups,
+        entity_list,
+        entity_status,
+        control_btn,
+        refresh_btn,
+        control_result,
+    )
+
 
 # 传感器数据选项卡相关函数
 def update_sensor_groups(sensor_type: str) -> tuple[gr.Dropdown, gr.Dropdown, gr.Textbox]:
@@ -243,17 +274,28 @@ def update_sensor_groups(sensor_type: str) -> tuple[gr.Dropdown, gr.Dropdown, gr
     elif sensor_type == "text":
         backend_sensor_type = "text_sensors"
     else:
-        return gr.Dropdown(choices=[], value=""), gr.Dropdown(choices=[], value=""), gr.Textbox(value="")
+        return (
+            gr.Dropdown(choices=[], value=""),
+            gr.Dropdown(choices=[], value=""),
+            gr.Textbox(value=""),
+        )
 
     sensor_key = f"{backend_sensor_type}_by_group"
     sensor_data = hass_manager.entity_data.get("sensor_data", {})
     if sensor_key in sensor_data:
         groups = list(sensor_data.get(sensor_key, {}).keys())
-        return gr.Dropdown(choices=groups, value=groups[0] if groups else ""), \
-               gr.Dropdown(choices=[], value=""), \
-               gr.Textbox(value="请选择传感器分组和传感器")
+        return (
+            gr.Dropdown(choices=groups, value=groups[0] if groups else ""),
+            gr.Dropdown(choices=[], value=""),
+            gr.Textbox(value="请选择传感器分组和传感器"),
+        )
 
-    return gr.Dropdown(choices=[], value=""), gr.Dropdown(choices=[], value=""), gr.Textbox(value="")
+    return (
+        gr.Dropdown(choices=[], value=""),
+        gr.Dropdown(choices=[], value=""),
+        gr.Textbox(value=""),
+    )
+
 
 def update_sensor_list(sensor_type: str, group_name: str) -> tuple[gr.Dropdown, gr.Textbox]:
     """
@@ -279,10 +321,12 @@ def update_sensor_list(sensor_type: str, group_name: str) -> tuple[gr.Dropdown, 
     if sensor_key in sensor_data and group_name in sensor_data.get(sensor_key, {}):
         sensors = sensor_data.get(sensor_key, {}).get(group_name, [])
         sensor_choices = [s.get("friendly_name", s.get("entity_id", "未知")) for s in sensors]
-        return gr.Dropdown(choices=sensor_choices, value=sensor_choices[0] if sensor_choices else ""), \
-               gr.Textbox(value="请选择传感器查看数据")
+        return gr.Dropdown(
+            choices=sensor_choices, value=sensor_choices[0] if sensor_choices else ""
+        ), gr.Textbox(value="请选择传感器查看数据")
 
     return gr.Dropdown(choices=[], value=""), gr.Textbox(value="")
+
 
 def update_sensor_info(sensor_type: str, group_name: str, sensor_name: str) -> gr.Textbox:
     """
@@ -318,12 +362,12 @@ def update_sensor_info(sensor_type: str, group_name: str, sensor_name: str) -> g
                     f"实体ID: {entity_id}",
                     f"友好名称: {sensor.get('friendly_name', '未知')}",
                     f"状态值: {state}{unit}",
-                    f"最后更新: {last_updated}"
+                    f"最后更新: {last_updated}",
                 ]
 
                 # 检查是否有更多属性可以显示
-                if 'external_attributes' in sensor:
-                    ext_attrs = sensor['external_attributes']
+                if "external_attributes" in sensor:
+                    ext_attrs = sensor["external_attributes"]
                     if ext_attrs:
                         sensor_info_lines.append("\n额外属性:")
                         for attr_name, attr_value in ext_attrs.items():
@@ -335,6 +379,7 @@ def update_sensor_info(sensor_type: str, group_name: str, sensor_name: str) -> g
                 return gr.Textbox(value="\n".join(sensor_info_lines))
 
     return gr.Textbox(value="未找到传感器信息")
+
 
 def analyze_all_entities() -> gr.Textbox:
     """
@@ -361,11 +406,14 @@ def analyze_all_entities() -> gr.Textbox:
         summary_file, analysis_file = hass_llm_controller.save_analysis_results(summary, analysis)
 
         if summary_file and analysis_file:
-            return gr.Textbox(value=f"分析完成！\n实体摘要已保存到: {summary_file}\n分析报告已保存到: {analysis_file}")
+            return gr.Textbox(
+                value=f"分析完成！\n实体摘要已保存到: {summary_file}\n分析报告已保存到: {analysis_file}"
+            )
         else:
             return gr.Textbox(value="分析失败：无法保存结果")
     except Exception as e:
         return gr.Textbox(value=f"分析失败：{e!s}")
+
 
 def refresh_sensor_list() -> tuple[gr.Dropdown, gr.Dropdown, gr.Dropdown, gr.Textbox]:
     """
@@ -377,10 +425,15 @@ def refresh_sensor_list() -> tuple[gr.Dropdown, gr.Dropdown, gr.Dropdown, gr.Tex
 
     hass_manager.update_entity_data()
     # UI中使用的传感器类型是'numeric'和'text'
-    return gr.Dropdown(choices=["numeric", "text"], value="numeric", interactive=True, allow_custom_value=True), \
-           gr.Dropdown(choices=[], value="", interactive=False, allow_custom_value=True), \
-           gr.Dropdown(choices=[], value="", interactive=False, allow_custom_value=True), \
-           gr.Textbox(value="传感器列表已刷新")
+    return (
+        gr.Dropdown(
+            choices=["numeric", "text"], value="numeric", interactive=True, allow_custom_value=True
+        ),
+        gr.Dropdown(choices=[], value="", interactive=False, allow_custom_value=True),
+        gr.Dropdown(choices=[], value="", interactive=False, allow_custom_value=True),
+        gr.Textbox(value="传感器列表已刷新"),
+    )
+
 
 # 创建传感器数据选项卡
 def create_sensor_data_tab():
@@ -397,25 +450,17 @@ def create_sensor_data_tab():
         choices=["numeric", "text"],
         value="numeric",
         interactive=True,
-        allow_custom_value=True
+        allow_custom_value=True,
     )
 
     # 传感器分组
     sensor_groups = gr.Dropdown(
-        label="传感器分组",
-        choices=[],
-        value="",
-        interactive=False,
-        allow_custom_value=True
+        label="传感器分组", choices=[], value="", interactive=False, allow_custom_value=True
     )
 
     # 传感器列表
     sensor_list = gr.Dropdown(
-        label="传感器列表",
-        choices=[],
-        value="",
-        interactive=False,
-        allow_custom_value=True
+        label="传感器列表", choices=[], value="", interactive=False, allow_custom_value=True
     )
 
     # 传感器信息
@@ -431,31 +476,27 @@ def create_sensor_data_tab():
     sensor_type.change(
         fn=update_sensor_groups,
         inputs=[sensor_type],
-        outputs=[sensor_groups, sensor_list, sensor_info]
+        outputs=[sensor_groups, sensor_list, sensor_info],
     )
 
     sensor_groups.change(
         fn=update_sensor_list,
         inputs=[sensor_type, sensor_groups],
-        outputs=[sensor_list, sensor_info]
+        outputs=[sensor_list, sensor_info],
     )
 
     sensor_list.change(
         fn=update_sensor_info,
         inputs=[sensor_type, sensor_groups, sensor_list],
-        outputs=[sensor_info]
+        outputs=[sensor_info],
     )
 
-    analyze_btn.click(
-        fn=analyze_all_entities,
-        outputs=[analyze_result]
-    )
+    analyze_btn.click(fn=analyze_all_entities, outputs=[analyze_result])
 
     # 刷新按钮
     refresh_btn = gr.Button("刷新传感器列表")
     refresh_btn.click(
-        fn=refresh_sensor_list,
-        outputs=[sensor_type, sensor_groups, sensor_list, sensor_info]
+        fn=refresh_sensor_list, outputs=[sensor_type, sensor_groups, sensor_list, sensor_info]
     )
 
     with gr.Column():
@@ -463,8 +504,16 @@ def create_sensor_data_tab():
         gr.Row([sensor_type, sensor_groups])
         gr.Row([sensor_list, sensor_info])
         gr.Row([analyze_btn, refresh_btn])
-        analyze_result
-    return sensor_type, sensor_groups, sensor_list, sensor_info, analyze_btn, refresh_btn, analyze_result
+    return (
+        sensor_type,
+        sensor_groups,
+        sensor_list,
+        sensor_info,
+        analyze_btn,
+        refresh_btn,
+        analyze_result,
+    )
+
 
 async def process_message_wrapper(message: str, history: list) -> list[dict]:
     """
@@ -480,7 +529,7 @@ async def process_message_wrapper(message: str, history: list) -> list[dict]:
     # 规范化历史记录格式为dict格式
     normalized_history = []
     for h in history:
-        if isinstance(h, dict) and 'role' in h and 'content' in h:
+        if isinstance(h, dict) and "role" in h and "content" in h:
             # 已经是dict格式
             normalized_history.append(h)
         elif isinstance(h, (tuple, list)) and len(h) == 2:
@@ -496,17 +545,18 @@ async def process_message_wrapper(message: str, history: list) -> list[dict]:
     response = await hass_llm_controller.process_home_assistant_message(message, normalized_history)
 
     # 添加新的消息到历史记录
-    updated_history = normalized_history + [
+    updated_history = [
+        *normalized_history,
         {"role": "user", "content": message},
-        {"role": "assistant", "content": response}
+        {"role": "assistant", "content": response},
     ]
 
     # 自动生成并播放语音回复
     try:
-        import os
         import tempfile
+
         temp_dir = tempfile.gettempdir()
-        output_file = os.path.join(temp_dir, "auto_response_audio.wav")
+        output_file = str(Path(temp_dir) / "auto_response_audio.wav")
 
         # 调用语音合成服务，使用默认语音类型
         success = qwen_speech_manager.text_to_audio(response, output_file, voice="female")
@@ -515,9 +565,10 @@ async def process_message_wrapper(message: str, history: list) -> list[dict]:
         else:
             logger.error("语音合成失败")
     except Exception as e:
-          logger.error(f"自动播放语音时出错: {e!s}")
+        logger.error(f"自动播放语音时出错: {e!s}")
 
     return updated_history
+
 
 # 创建对话选项卡
 def create_chat_tab():
@@ -548,12 +599,13 @@ def create_chat_tab():
 
         try:
             # 检查文件是否存在
-            import os
-            if not os.path.exists(audio):
+            audio_path = Path(audio)
+
+            if not audio_path.exists():
                 return "", "错误：录音文件不存在或已损坏", chat_history
 
             # 获取文件大小，确保文件不为空
-            if os.path.getsize(audio) == 0:
+            if audio_path.stat().st_size == 0:
                 return "", "错误：录音文件内容为空", chat_history
 
             # 调用语音识别服务
@@ -581,32 +633,28 @@ def create_chat_tab():
             error_msg = f"语音识别出错: {e!s}"
             logger.error(error_msg)
             import traceback
+
             traceback.print_exc()
             return "", error_msg, chat_history
 
     # 设置事件处理
     submit_btn.click(
-        fn=process_message_wrapper,
-        inputs=[user_input, chat_history],
-        outputs=[chat_history]
+        fn=process_message_wrapper, inputs=[user_input, chat_history], outputs=[chat_history]
     )
 
     user_input.submit(
-        fn=process_message_wrapper,
-        inputs=[user_input, chat_history],
-        outputs=[chat_history]
+        fn=process_message_wrapper, inputs=[user_input, chat_history], outputs=[chat_history]
     )
 
     clear_btn.click(
-        fn=lambda: ([], "", "就绪"),
-        outputs=[chat_history, user_input, recognition_status]
+        fn=lambda: ([], "", "就绪"), outputs=[chat_history, user_input, recognition_status]
     )
 
     # 语音识别事件处理 - 使用自动提交功能
     audio_input.stop_recording(
         fn=recognize_and_auto_submit,
         inputs=[audio_input, chat_history],
-        outputs=[user_input, recognition_status, chat_history]
+        outputs=[user_input, recognition_status, chat_history],
     )
     return chat_history, user_input, submit_btn, clear_btn
 
@@ -637,6 +685,7 @@ def create_gradio_interface():
 
     return interface
 
+
 # 主函数
 def main(server_port):
     """
@@ -648,16 +697,13 @@ def main(server_port):
         logger.info("Gradio界面创建完成")
 
         # 启动界面
-        interface.launch(
-            server_name="localhost",
-            server_port=server_port,
-            share=True,
-            debug=True
-        )
+        interface.launch(server_name="localhost", server_port=server_port, share=True, debug=True)
     except Exception as e:
         logger.error(f"程序运行出错: {e!s}")
         import traceback
+
         traceback.print_exc()
+
 
 # 执行主函数
 if __name__ == "__main__":
@@ -666,4 +712,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("\n程序已停止")
     except Exception as e:
-          logger.error(f"程序运行出错: {e}")
+        logger.error(f"程序运行出错: {e}")

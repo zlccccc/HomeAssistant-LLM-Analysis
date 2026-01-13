@@ -4,6 +4,7 @@ HomeAssistantManager Test Suite
 Tests the Home Assistant API integration module.
 Run with: uv run pytest test/test_home_assistant.py -v
 """
+
 import os
 from unittest.mock import MagicMock, patch
 
@@ -18,10 +19,12 @@ class TestHomeAssistantManager:
     @pytest.fixture
     def manager(self, mock_ha_config):
         """Create a HomeAssistantManager instance with mocked config."""
-        with patch.dict(os.environ, mock_ha_config, clear=False):
-            with patch("backend.source.api_layer.home_assistant.requests"):
-                manager = HomeAssistantManager()
-                yield manager
+        with (
+            patch.dict(os.environ, mock_ha_config, clear=False),
+            patch("backend.source.api_layer.home_assistant.requests"),
+        ):
+            manager = HomeAssistantManager()
+            yield manager
 
     @pytest.fixture
     def mock_response(self):
@@ -36,25 +39,29 @@ class TestHomeAssistantManager:
 
     def test_initialization(self, mock_ha_config):
         """Test manager initialization with config."""
-        with patch.dict(os.environ, mock_ha_config, clear=False):
-            with patch("backend.source.api_layer.home_assistant.requests"):
-                manager = HomeAssistantManager()
-                assert manager.url == "http://localhost:8123"
-                assert manager.token == "test_token_12345"
-                assert "Authorization" in manager.headers
-                assert "Bearer test_token_12345" in manager.headers["Authorization"]
-                assert isinstance(manager.entity_data, dict)
+        with (
+            patch.dict(os.environ, mock_ha_config, clear=False),
+            patch("backend.source.api_layer.home_assistant.requests"),
+        ):
+            manager = HomeAssistantManager()
+            assert manager.url == "http://localhost:8123"
+            assert manager.token == "test_token_12345"
+            assert "Authorization" in manager.headers
+            assert "Bearer test_token_12345" in manager.headers["Authorization"]
+            assert isinstance(manager.entity_data, dict)
 
     def test_initialization_with_defaults(self):
         """Test manager initialization with default values."""
-        with patch.dict(os.environ, {}, clear=True):
-            with patch("backend.source.api_layer.home_assistant.requests"):
-                manager = HomeAssistantManager()
-                assert manager.url == "http://localhost:8123"
-                assert manager.token == ""
-                # entity_data is initialized with None values due to failed API call
-                assert "sensor_data" in manager.entity_data
-                assert "non_sensor_data" in manager.entity_data
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("backend.source.api_layer.home_assistant.requests"),
+        ):
+            manager = HomeAssistantManager()
+            assert manager.url == "http://localhost:8123"
+            assert manager.token == ""
+            # entity_data is initialized with None values due to failed API call
+            assert "sensor_data" in manager.entity_data
+            assert "non_sensor_data" in manager.entity_data
 
     # ============== Entity Grouping Tests ==============
 
@@ -115,7 +122,7 @@ class TestHomeAssistantManager:
         assert group_names == sorted(group_names)
 
         # Entities within groups should be sorted
-        for group_name, group_entities in result.items():
+        for _group_name, group_entities in result.items():
             friendly_names = [e.get("friendly_name", "") for e in group_entities]
             assert friendly_names == sorted(friendly_names)
 
@@ -314,30 +321,32 @@ class TestHomeAssistantManager:
     @patch("backend.source.api_layer.home_assistant.pd.ExcelWriter")
     @patch("backend.source.api_layer.home_assistant.os.path.exists")
     @patch("backend.source.api_layer.home_assistant.os.makedirs")
-    def test_export_to_excel_success(self, mock_makedirs, mock_exists, mock_writer, manager, mock_entity_data):
+    def test_export_to_excel_success(
+        self, mock_makedirs, mock_exists, mock_writer, manager, mock_entity_data
+    ):
         """Test successful Excel export."""
         mock_exists.return_value = False
         mock_writer.return_value.__enter__ = MagicMock()
         mock_writer.return_value.__exit__ = MagicMock()
 
         result = manager.export_to_excel(
-            mock_entity_data["sensor_data"],
-            mock_entity_data["non_sensor_data"]
+            mock_entity_data["sensor_data"], mock_entity_data["non_sensor_data"]
         )
 
         assert result is not None
         assert result.endswith(".xlsx")
 
     @patch("backend.source.api_layer.home_assistant.pd.ExcelWriter")
-    def test_export_to_excel_with_output_dir(self, mock_writer, manager, mock_entity_data, temp_output_dir):
+    def test_export_to_excel_with_output_dir(
+        self, mock_writer, manager, mock_entity_data, temp_output_dir
+    ):
         """Test Excel export with custom output directory."""
         with patch.dict(os.environ, {"OUTPUT_DIR": str(temp_output_dir)}):
             mock_writer.return_value.__enter__ = MagicMock()
             mock_writer.return_value.__exit__ = MagicMock()
 
             result = manager.export_to_excel(
-                mock_entity_data["sensor_data"],
-                mock_entity_data["non_sensor_data"]
+                mock_entity_data["sensor_data"], mock_entity_data["non_sensor_data"]
             )
 
             assert result is not None
@@ -348,8 +357,7 @@ class TestHomeAssistantManager:
         mock_writer.side_effect = Exception("Export failed")
 
         result = manager.export_to_excel(
-            mock_entity_data["sensor_data"],
-            mock_entity_data["non_sensor_data"]
+            mock_entity_data["sensor_data"], mock_entity_data["non_sensor_data"]
         )
 
         assert result is None

@@ -4,25 +4,26 @@ LLM Connection Test Script
 Tests LLM functionality without requiring Home Assistant access.
 Run with: uv run python test/test_llm_connection.py
 """
-import asyncio
-import os
-import sys
 
-# Add backend to Python path to import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import asyncio
+import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Add backend to Python path to import modules
+sys.path.insert(0, str(Path(__file__).parent / ".."))
 
 from backend.source.api_layer.llm_manager import llm_manager
+
+load_dotenv()
 
 
 def print_section(title: str):
     """Print a section header."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  {title}")
-    print('='*60)
+    print("=" * 60)
 
 
 def print_result(label: str, success: bool, detail: str = ""):
@@ -38,11 +39,13 @@ async def test_llm_manager():
     print_section("1. LLM Manager Initialization")
 
     if llm_manager.get_chat_model():
-        print_result("LLM Manager has chat model", True,
-                    type(llm_manager.get_chat_model()).__name__)
+        print_result(
+            "LLM Manager has chat model", True, type(llm_manager.get_chat_model()).__name__
+        )
     else:
-        print_result("LLM Manager has chat model", False,
-                    "Missing API key or initialization failed")
+        print_result(
+            "LLM Manager has chat model", False, "Missing API key or initialization failed"
+        )
 
 
 async def test_api_call():
@@ -52,11 +55,10 @@ async def test_api_call():
     try:
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "Hello, how are you?"}
+            {"role": "user", "content": "Hello, how are you?"},
         ]
         response = llm_manager.call_openai_api(messages)
-        print_result("API call succeeded", True,
-                    f"Response: {response[:50]}...")
+        print_result("API call succeeded", True, f"Response: {response[:50]}...")
     except Exception as e:
         print_result("API call failed", False, str(e))
 
@@ -80,9 +82,10 @@ async def main():
     except Exception as e:
         print(f"\n\n[Fatal error: {e}]")
         import traceback
+
         traceback.print_exc()
 
-    print("\n" + "="*60 + "\n")
+    print("\n" + "=" * 60 + "\n")
 
 
 if __name__ == "__main__":

@@ -1,18 +1,17 @@
-import asyncio
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
-# 导入dotenv
-from dotenv import load_dotenv
-
+# 导入dotenv（不在顶层加载，由调用者决定）
 # 导入langgraph相关模块
 from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel
 
+# 导入延迟初始化的管理器
 from backend.source.api_layer.home_assistant import hass_manager
 
 # 导入其他必要的模块
@@ -23,10 +22,9 @@ from backend.source.api_layer.memory_manager import memory_manager
 from backend.source.base_layer.utils import logger
 from backend.source.command_parser import CommandParser
 
-load_dotenv()
-
-# 读取环境变量
+# 读取环境变量（不自动加载 .env）
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
+
 
 # 定义状态类型
 class State(BaseModel):
@@ -39,51 +37,64 @@ class State(BaseModel):
     analysis_summary: str = ""
     analysis_details: dict[str, Any] | None = None
 
+
 class HomeAssistantLLMControllerLangGraph:
     """
     基于LangGraph的Home Assistant LLM控制器
     负责协调大模型和Home Assistant之间的交互
     """
 
-    def __init__(self):
-        # 确保hass_manager已初始化，获取必要的参数
-        # Handle case where hass_manager.entity_data is None
-        entity_data = hass_manager.entity_data or {}
-        self.command_parser = CommandParser(
-            entity_data=entity_data.get("non_sensor_data", {}),
-            url=hass_manager.url,
-            headers=hass_manager.headers
-        )
+    def __init__(self, auto_initialize: bool = True):
+        if auto_initialize:
+            # 确保hass_manager已初始化，获取必要的参数
+            # Handle case where hass_manager.entity_data is None
+            entity_data = hass_manager.entity_data or {}
+            self.command_parser = CommandParser(
+                entity_data=entity_data.get("non_sensor_data", {}),
+                url=hass_manager.url,
+                headers=hass_manager.headers,
+            )
 
-        # 初始化LangGraph
-        self.graph = self._build_graph()
-        self.compiled_graph = self.graph.compile()
+            # 初始化LangGraph
+            self.graph = self._build_graph()
+            self.compiled_graph = self.graph.compile()
 
-        logger.info("基于LangGraph的HomeAssistantLLMController已初始化")
+            logger.info("基于LangGraph的HomeAssistantLLMController已初始化")
+        else:
+            self.command_parser = None
+            self.graph = None
+            self.compiled_graph = None
 
-    async def _memory_messages(self, state: State) -> dict[str, Any]:
+    def _memory_messages(self, state: State) -> dict[str, Any]:
         """
         记忆消息
         使用memory_manager存储对话消息
         """
+        import asyncio
+
         logger.info("处理对话记忆")
 
-        to_memorize_messages = [msg for msg in state.messages if msg not in state.memorized_messages]
+        to_memorize_messages = [
+            msg for msg in state.messages if msg not in state.memorized_messages
+        ]
 
-        # 直接在异步上下文中调用记忆方法
-        result = None
-        try:
-            result = await memory_manager.memorize_messages(to_memorize_messages)
-        except Exception as e:
-            logger.error(f"记忆操作失败: {e}")
-            result = {"memorized_count": 0, "status": "error", "error": str(e)}
+        # 实际调用记忆功能
+        # 尝试运行异步记忆操作，但如果已经在一个事件循环中则跳过
+        if to_memorize_messages:
+            try:
+                # 检查是否已经有运行的事件循环
+                asyncio.get_running_loop()
+                # 如果有运行的循环，不能用run()，所以只更新内部状态
+                logger.debug("检测到正在运行的事件循环，跳过异步记忆调用")
+            except RuntimeError:
+                # 没有运行的事件循环，可以安全地运行
+                try:
+                    asyncio.run(memory_manager.memorize_messages(to_memorize_messages))
+                except Exception as e:
+                    logger.error(f"记忆操作失败: {e}")
 
-        if result:
-            logger.debug(f"记忆结果: {result.get('status', 'unknown')}")
-
-        # 返回状态，确保LangGraph流程正常继续
-        return state
-
+        # 返回状态更新，将新消息添加到记忆列表
+        return {"memorized_messages": state.memorized_messages + to_memorize_messages}
 
     def _build_graph(self) -> StateGraph:
         """
@@ -105,10 +116,7 @@ class HomeAssistantLLMControllerLangGraph:
         graph.add_conditional_edges(
             "check_for_command",
             self._should_execute_command,
-            {
-                "execute": "execute_command",
-                "respond": "generate_response"
-            }
+            {"execute": "execute_command", "respond": "generate_response"},
         )
         graph.add_edge("execute_command", "generate_response")
         graph.add_edge("generate_response", END)
@@ -126,7 +134,7 @@ class HomeAssistantLLMControllerLangGraph:
             entity_data = hass_manager.entity_data or {}
             state.entity_data = {
                 "sensor_data": entity_data.get("sensor_data", {}),
-                "non_sensor_data": entity_data.get("non_sensor_data", {})
+                "non_sensor_data": entity_data.get("non_sensor_data", {}),
             }
 
         # 更新命令解析器的实体数据
@@ -150,7 +158,7 @@ class HomeAssistantLLMControllerLangGraph:
         # 将字符串结果包装成字典格式
         parsed_command = {
             "message": parsed_result,
-            "should_execute": "成功执行" in parsed_result  # 如果包含"成功执行"，认为是可执行命令
+            "should_execute": "成功执行" in parsed_result,  # 如果包含"成功执行"，认为是可执行命令
         }
 
         return {"parsed_command": parsed_command}
@@ -182,12 +190,12 @@ class HomeAssistantLLMControllerLangGraph:
         entity_data = hass_manager.entity_data or {}
         updated_entity_data = {
             "sensor_data": entity_data.get("sensor_data", {}),
-            "non_sensor_data": entity_data.get("non_sensor_data", {})
+            "non_sensor_data": entity_data.get("non_sensor_data", {}),
         }
 
         return {
             "execution_result": result,  # 直接使用字符串结果
-            "entity_data": updated_entity_data
+            "entity_data": updated_entity_data,
         }
 
     def _create_react_agent(self, tools):
@@ -211,13 +219,13 @@ class HomeAssistantLLMControllerLangGraph:
             # 构建系统提示
             system_prompt = await self._build_system_prompt(state.entity_data, state, user_message)
 
-            to_invoke_messages = [{"role": "system", "content": system_prompt},
-                                  *state.messages]
+            to_invoke_messages = [{"role": "system", "content": system_prompt}, *state.messages]
 
             try:
                 # 使用hass_manager中的方法获取MCP工具
                 # 检查是否有运行的事件循环
                 import asyncio
+
                 try:
                     asyncio.get_running_loop()
                     # 在异步上下文中，直接调用
@@ -237,19 +245,29 @@ class HomeAssistantLLMControllerLangGraph:
                     if response_obj.get("messages"):
                         for msg in response_obj["messages"]:
                             if isinstance(msg, HumanMessage):
-                                formatted_msgs.append({"role": "user", "content": getattr(msg, 'content', '')})
+                                formatted_msgs.append(
+                                    {"role": "user", "content": getattr(msg, "content", "")}
+                                )
                             elif isinstance(msg, SystemMessage):
-                                formatted_msgs.append({"role": "system", "content": getattr(msg, 'content', '')})
+                                formatted_msgs.append(
+                                    {"role": "system", "content": getattr(msg, "content", "")}
+                                )
                             else:
-                                formatted_msgs.append({"role": "assistant", "content": getattr(msg, 'content', '')})
+                                formatted_msgs.append(
+                                    {"role": "assistant", "content": getattr(msg, "content", "")}
+                                )
 
                         # Safely get the last message content
                         last_msg = response_obj["messages"][-1]
-                        response = getattr(last_msg, 'content', str(last_msg)) if last_msg else str(response_obj)
+                        response = (
+                            getattr(last_msg, "content", str(last_msg))
+                            if last_msg
+                            else str(response_obj)
+                        )
                     else:
                         # If no messages in response, just get the content
-                        if hasattr(response_obj, 'content'):
-                            response = getattr(response_obj, 'content', '')
+                        if hasattr(response_obj, "content"):
+                            response = getattr(response_obj, "content", "")
                         else:
                             response = str(response_obj)
                 else:
@@ -265,8 +283,10 @@ class HomeAssistantLLMControllerLangGraph:
                     logger.error(f"简单调用也失败: {fallback_e!s}")
                     response = f"抱歉，我遇到了一些技术问题: {fallback_e!s}"
 
-        return {"response": response, "messages": state.messages + [{"role": "assistant", "content": response}]}
-
+        return {
+            "response": response,
+            "messages": [*state.messages, {"role": "assistant", "content": response}],
+        }
 
     async def _generate_response(self, state: State) -> dict[str, Any]:
         """
@@ -278,7 +298,10 @@ class HomeAssistantLLMControllerLangGraph:
         if state.execution_result:
             response = state.execution_result
             # 保持原有的消息列表，只添加助手回复
-            return {"response": response, "messages": state.messages + [{"role": "assistant", "content": response}]}
+            return {
+                "response": response,
+                "messages": [*state.messages, {"role": "assistant", "content": response}],
+            }
         else:
             # 调用异步方法生成回复
             try:
@@ -286,14 +309,20 @@ class HomeAssistantLLMControllerLangGraph:
             except Exception as e:
                 logger.error(f"生成回复时出错: {e!s}")
                 import traceback
+
                 traceback.print_exc()
                 # 发生错误时返回默认消息
                 error_msg = f"抱歉，生成回复时出错: {e!s}"
-                return {"response": error_msg, "messages": state.messages + [{"role": "assistant", "content": error_msg}]}
+                return {
+                    "response": error_msg,
+                    "messages": [*state.messages, {"role": "assistant", "content": error_msg}],
+                }
 
             return result
 
-    async def _build_system_prompt(self, entity_data: dict[str, Any], state: State, user_message: str) -> str:
+    async def _build_system_prompt(
+        self, entity_data: dict[str, Any], state: State, user_message: str
+    ) -> str:
         """
         构建系统提示，包含实体信息
         """
@@ -313,7 +342,7 @@ class HomeAssistantLLMControllerLangGraph:
 当前可用设备概览：
 {device_overview}
 
-{'这里是和用户有关的记忆信息:' if retrieved_prompt else ''}
+{"这里是和用户有关的记忆信息:" if retrieved_prompt else ""}
 {retrieved_prompt}
 
 请根据用户的问题或请求，提供有用的回答。如果你无法回答，请坦诚告知。
@@ -342,7 +371,7 @@ class HomeAssistantLLMControllerLangGraph:
                 if entities:
                     overview.append(f"- {device_type}设备: {len(entities)}个")
                     # 只列出前3个设备作为示例
-                    for i, entity in enumerate(entities[:3]):
+                    for _i, entity in enumerate(entities[:3]):
                         name = entity.get("friendly_name", entity.get("entity_id", "未知设备"))
                         state = entity.get("state", "未知状态")
                         overview.append(f"  - {name}: 当前状态为{state}")
@@ -371,14 +400,18 @@ class HomeAssistantLLMControllerLangGraph:
 
         return "\n".join(overview)
 
-    async def process_home_assistant_message(self, message: str, history: list[tuple[str, str]] = None) -> str:
+    async def process_home_assistant_message(
+        self, message: str, history: list[tuple[str, str]] | None = None
+    ) -> str:
         """
         处理Home Assistant相关消息
         :param message: 用户消息
         :param history: 历史对话
         :return: 响应消息
         """
-        logger.info(f"开始处理Home Assistant消息: {message[:100]}...")  # Log first 100 chars of message
+        logger.info(
+            f"开始处理Home Assistant消息: {message[:100]}..."
+        )  # Log first 100 chars of message
         start_time = datetime.now()
         try:
             # 构建消息历史
@@ -399,19 +432,17 @@ class HomeAssistantLLMControllerLangGraph:
             entity_data_from_manager = hass_manager.entity_data or {}
             entity_data = {
                 "sensor_data": entity_data_from_manager.get("sensor_data") or {},
-                "non_sensor_data": entity_data_from_manager.get("non_sensor_data") or {}
+                "non_sensor_data": entity_data_from_manager.get("non_sensor_data") or {},
             }
-            logger.info(f"获取到实体数据 - 传感器: {len(entity_data['sensor_data'].get('numeric_sensors', []) + entity_data['sensor_data'].get('text_sensors', []))}, 设备: {sum(len(v) for v in entity_data['non_sensor_data'].values() if isinstance(v, list))}")
+            logger.info(
+                f"获取到实体数据 - 传感器: {len(entity_data['sensor_data'].get('numeric_sensors', []) + entity_data['sensor_data'].get('text_sensors', []))}, 设备: {sum(len(v) for v in entity_data['non_sensor_data'].values() if isinstance(v, list))}"
+            )
 
             # 运行图
             logger.info("开始运行LangGraph处理流程")
             config = {"configurable": {"thread_id": "home_assistant_thread"}}
             result = await self.compiled_graph.ainvoke(
-                {
-                    "messages": messages,
-                    "entity_data": entity_data
-                },
-                config=config
+                {"messages": messages, "entity_data": entity_data}, config=config
             )
             logger.info("LangGraph处理完成")
 
@@ -428,7 +459,9 @@ class HomeAssistantLLMControllerLangGraph:
             logger.exception("处理消息时发生异常")  # Also log the full traceback
             return error_msg
 
-    def analyze_entities(self, sensor_data: dict[str, Any], non_sensor_data: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    def analyze_entities(
+        self, sensor_data: dict[str, Any], non_sensor_data: dict[str, Any]
+    ) -> tuple[str, dict[str, Any]]:
         """
         分析实体数据
         :param sensor_data: 传感器数据
@@ -450,7 +483,7 @@ class HomeAssistantLLMControllerLangGraph:
             # 构建消息
             messages = [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"实体数据：\n{entity_description}"}
+                {"role": "user", "content": f"实体数据：\n{entity_description}"},
             ]
 
             # 调用大模型分析
@@ -464,7 +497,7 @@ class HomeAssistantLLMControllerLangGraph:
 
             summary_messages = [
                 {"role": "system", "content": "你是一个摘要生成器。"},
-                {"role": "user", "content": summary_prompt}
+                {"role": "user", "content": summary_prompt},
             ]
 
             summary = llm_manager.call_openai_api(summary_messages, temperature=0.1)
@@ -474,7 +507,7 @@ class HomeAssistantLLMControllerLangGraph:
                 "timestamp": datetime.now().isoformat(),
                 "raw_analysis": analysis_result,
                 "sensor_count": self._count_entities(sensor_data),
-                "device_count": self._count_entities(non_sensor_data)
+                "device_count": self._count_entities(non_sensor_data),
             }
 
             return summary, analysis
@@ -484,7 +517,9 @@ class HomeAssistantLLMControllerLangGraph:
             logger.error(error_msg)
             return error_msg, {"error": str(e)}
 
-    def _prepare_entity_description(self, sensor_data: dict[str, Any], non_sensor_data: dict[str, Any]) -> str:
+    def _prepare_entity_description(
+        self, sensor_data: dict[str, Any], non_sensor_data: dict[str, Any]
+    ) -> str:
         """
         准备实体数据描述
         """
@@ -551,21 +586,21 @@ class HomeAssistantLLMControllerLangGraph:
         """
         try:
             # 确保输出目录存在
-            output_dir = os.path.join(os.getcwd(), OUTPUT_DIR)
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
+            output_dir = Path.cwd() / OUTPUT_DIR
+            if not output_dir.exists():
+                output_dir.mkdir(parents=True, exist_ok=True)
 
             # 生成文件名
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            summary_file = os.path.join(output_dir, f"entity_summary_{timestamp}.txt")
-            analysis_file = os.path.join(output_dir, f"entity_analysis_{timestamp}.json")
+            summary_file = output_dir / f"entity_summary_{timestamp}.txt"
+            analysis_file = output_dir / f"entity_analysis_{timestamp}.json"
 
             # 保存摘要
-            with open(summary_file, 'w', encoding='utf-8') as f:
+            with (summary_file).open("w", encoding="utf-8") as f:
                 f.write(summary)
 
             # 保存分析结果
-            with open(analysis_file, 'w', encoding='utf-8') as f:
+            with (analysis_file).open("w", encoding="utf-8") as f:
                 json.dump(analysis, f, ensure_ascii=False, indent=2)
 
             logger.info(f"分析结果已保存到: {summary_file} 和 {analysis_file}")
@@ -576,6 +611,29 @@ class HomeAssistantLLMControllerLangGraph:
             logger.error(error_msg)
             return None, None
 
-# 创建全局实例供其他模块使用
-hass_llm_controller_langgraph = HomeAssistantLLMControllerLangGraph()
+
+# 创建全局实例（使用延迟初始化）
+_hass_llm_controller_langgraph: HomeAssistantLLMControllerLangGraph | None = None
+
+
+def get_hass_llm_controller_langgraph() -> HomeAssistantLLMControllerLangGraph:
+    """获取全局HomeAssistantLLMControllerLangGraph实例（延迟初始化）"""
+    global _hass_llm_controller_langgraph
+    if _hass_llm_controller_langgraph is None:
+        _hass_llm_controller_langgraph = HomeAssistantLLMControllerLangGraph()
+    return _hass_llm_controller_langgraph
+
+
+# 为了向后兼容，创建一个属性访问器
+class _HassLLMControllerLangGraphProxy:
+    """代理类，用于延迟初始化hass_llm_controller_langgraph"""
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(get_hass_llm_controller_langgraph(), name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        setattr(get_hass_llm_controller_langgraph(), name, value)
+
+
+hass_llm_controller_langgraph = _HassLLMControllerLangGraphProxy()  # type: ignore[misc]
 logger.info("全局实例 hass_llm_controller_langgraph 已创建")

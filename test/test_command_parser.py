@@ -4,6 +4,7 @@ CommandParser Test Suite
 Tests the command parsing and execution module.
 Run with: uv run pytest test/test_command_parser.py -v
 """
+
 import re
 from unittest.mock import patch
 
@@ -58,6 +59,7 @@ class TestCommandParser:
             if name == "requests":
                 # Create a mock requests module
                 import unittest.mock as mock
+
                 m = mock.MagicMock()
                 m.post.return_value.status_code = 200
                 return m
@@ -76,6 +78,7 @@ class TestCommandParser:
         def mock_import(name, *args, **kwargs):
             if name == "requests":
                 import unittest.mock as mock
+
                 m = mock.MagicMock()
                 m.post.return_value.status_code = 201
                 return m
@@ -94,6 +97,7 @@ class TestCommandParser:
         def mock_import(name, *args, **kwargs):
             if name == "requests":
                 import unittest.mock as mock
+
                 m = mock.MagicMock()
                 m.post.return_value.status_code = 400
                 m.post.return_value.text = "Bad request"
@@ -113,6 +117,7 @@ class TestCommandParser:
         def mock_import(name, *args, **kwargs):
             if name == "requests":
                 import unittest.mock as mock
+
                 m = mock.MagicMock()
                 m.post.side_effect = Exception("Connection error")
                 return m
@@ -138,6 +143,7 @@ class TestCommandParser:
         def mock_import(name, *args, **kwargs):
             if name == "requests":
                 import unittest.mock as mock
+
                 m = mock.MagicMock()
                 m.post.return_value.status_code = 200
                 return m
@@ -221,17 +227,17 @@ class TestCommandParser:
     def test_command_patterns_validity(self):
         """Test that all command patterns are valid regex."""
         command_patterns = [
-            (r'打开\s*(.+?)灯', 'light', 'turn_on'),
-            (r'关闭\s*(.+?)灯', 'light', 'turn_off'),
-            (r'开灯', 'light', 'turn_on'),
-            (r'关灯', 'light', 'turn_off'),
-            (r'打开\s*(.+?)开关', 'switch', 'turn_on'),
-            (r'关闭\s*(.+?)开关', 'switch', 'turn_off'),
-            (r'开启\s*(.+?)', 'switch', 'turn_on'),
-            (r'关闭\s*(.+?)', 'switch', 'turn_off'),
+            (r"打开\s*(.+?)灯", "light", "turn_on"),
+            (r"关闭\s*(.+?)灯", "light", "turn_off"),
+            (r"开灯", "light", "turn_on"),
+            (r"关灯", "light", "turn_off"),
+            (r"打开\s*(.+?)开关", "switch", "turn_on"),
+            (r"关闭\s*(.+?)开关", "switch", "turn_off"),
+            (r"开启\s*(.+?)", "switch", "turn_on"),
+            (r"关闭\s*(.+?)", "switch", "turn_off"),
         ]
 
-        for pattern, domain, service in command_patterns:
+        for pattern, _domain, _service in command_patterns:
             try:
                 re.compile(pattern)
             except re.error:
@@ -239,7 +245,7 @@ class TestCommandParser:
 
     def test_pattern_matching_open_light(self):
         """Test '打开XXX灯' pattern matching."""
-        pattern = r'打开\s*(.+?)灯'
+        pattern = r"打开\s*(.+?)灯"
         test_cases = [
             ("打开客厅灯", "客厅"),
             ("打开卧室灯", "卧室"),
@@ -253,7 +259,7 @@ class TestCommandParser:
 
     def test_pattern_matching_close_light(self):
         """Test '关闭XXX灯' pattern matching."""
-        pattern = r'关闭\s*(.+?)灯'
+        pattern = r"关闭\s*(.+?)灯"
         test_cases = [
             ("关闭客厅灯", "客厅"),
             ("关闭卧室灯", "卧室"),
@@ -266,7 +272,7 @@ class TestCommandParser:
 
     def test_pattern_matching_all_lights(self):
         """Test '打开所有灯' pattern matching."""
-        pattern = r'打开所有灯'
+        pattern = r"打开所有灯"
         assert re.search(pattern, "打开所有灯") is not None
         assert re.search(pattern, "全部开灯") is None  # Different pattern
 
@@ -281,9 +287,7 @@ class TestCommandParser:
     def test_parse_with_none_entity_data(self):
         """Test parsing with None entity data."""
         parser = CommandParser(
-            entity_data=None,
-            url="http://localhost:8123",
-            headers={"Authorization": "Bearer test"}
+            entity_data=None, url="http://localhost:8123", headers={"Authorization": "Bearer test"}
         )
         result = parser.parse_and_execute_command("打开客厅灯")
         assert "未找到" in result
@@ -315,7 +319,7 @@ class TestCommandParser:
         parser = CommandParser(
             entity_data={"sensor_data": {}, "non_sensor_data": {}},
             url="http://localhost:8123",
-            headers={"Authorization": "Bearer test"}
+            headers={"Authorization": "Bearer test"},
         )
 
         result = parser.parse_and_execute_command("打开所有灯")
@@ -327,27 +331,28 @@ class TestCommandParser:
 class TestCommandParserPatterns:
     """Tests specifically for command pattern matching."""
 
-    @pytest.mark.parametrize("command,expected_match", [
-        ("打开客厅灯", True),
-        ("关闭卧室灯", True),
-        ("打开所有灯", True),
-        ("关闭所有灯", True),
-        ("开灯", True),
-        ("关灯", True),
-        ("打开风扇开关", True),
-        ("关闭风扇开关", True),
-        ("开启空调", True),
-        ("关闭电视", True),
-        ("播放音乐", False),
-        ("今天天气怎么样", False),
-        ("", False),
-    ])
+    @pytest.mark.parametrize(
+        "command,expected_match",
+        [
+            ("打开客厅灯", True),
+            ("关闭卧室灯", True),
+            ("打开所有灯", True),
+            ("关闭所有灯", True),
+            ("开灯", True),
+            ("关灯", True),
+            ("打开风扇开关", True),
+            ("关闭风扇开关", True),
+            ("开启空调", True),
+            ("关闭电视", True),
+            ("播放音乐", False),
+            ("今天天气怎么样", False),
+            ("", False),
+        ],
+    )
     def test_command_recognition(self, command, expected_match):
         """Test that valid commands are recognized."""
         parser = CommandParser(
-            entity_data={},
-            url="http://localhost:8123",
-            headers={"Authorization": "Bearer test"}
+            entity_data={}, url="http://localhost:8123", headers={"Authorization": "Bearer test"}
         )
         result = parser.parse_and_execute_command(command)
 

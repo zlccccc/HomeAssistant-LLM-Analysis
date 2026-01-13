@@ -4,34 +4,26 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 
-# 加载环境变量
-load_dotenv()
-
-# 读取环境变量
-HA_URL = os.getenv("HA_URL", "http://localhost:8123")
-HA_TOKEN = os.getenv("HA_TOKEN", "")
-HEADERS = {
-    "Authorization": f"Bearer {HA_TOKEN}",
-    "Content-Type": "application/json"
-}
-
-# 导入模块化组件
-from backend.source.api_layer.home_assistant import hass_manager
-
 # 导入日志工具
 from backend.source.base_layer.utils import logger
-from backend.source.home_assistant_llm_controller_langgraph import (
-    hass_llm_controller_langgraph as hass_llm_controller,
-)
+
+# 读取环境变量（不自动加载 .env，由调用者决定）
+HA_URL = os.getenv("HA_URL", "http://localhost:8123")
+HA_TOKEN = os.getenv("HA_TOKEN", "")
+HEADERS = {"Authorization": f"Bearer {HA_TOKEN}", "Content-Type": "application/json"}
+
+# 延迟导入的模块（只在主程序运行时需要）
+hass_manager = None
+hass_llm_controller = None
 
 
 # 从get_sensor.py合并的功能函数
 def get_entity_info(entity_id: str) -> dict[str, Any] | None:
     """
     获取单个实体的详细信息
-    
+
     :param entity_id: 实体ID
-    :return: 实体信息字典，如果实体不存在返回None
+    :return: 实体信息字典, 如果实体不存在返回None
     """
     try:
         url = f"{HA_URL}/api/states/{entity_id}"
@@ -46,24 +38,26 @@ def get_entity_info(entity_id: str) -> dict[str, Any] | None:
         logger.error(f"获取实体 {entity_id} 信息异常: {e!s}")
         return None
 
+
 def get_entity_history(entity_id: str, hours: int = 24) -> list[dict[str, Any]] | None:
     """
     获取实体的历史数据
-    
+
     :param entity_id: 实体ID
-    :param hours: 历史数据的时间范围（小时）
-    :return: 历史数据列表，如果获取失败返回None
+    :param hours: 历史数据的时间范围(小时)
+    :return: 历史数据列表, 如果获取失败返回None
     """
     try:
         url = f"{HA_URL}/api/history/period"
-        # 计算开始时间（现在减去hours小时）
+        # 计算开始时间(现在减去hours小时)
         import datetime
+
         start_time = (datetime.datetime.now() - datetime.timedelta(hours=hours)).isoformat()
 
         params = {
             "start_time": start_time,
             "filter_entity_id": entity_id,
-            "end_time": datetime.datetime.now().isoformat()
+            "end_time": datetime.datetime.now().isoformat(),
         }
 
         response = requests.get(url, headers=HEADERS, params=params, timeout=30)
@@ -78,11 +72,12 @@ def get_entity_history(entity_id: str, hours: int = 24) -> list[dict[str, Any]] 
         logger.error(f"获取实体 {entity_id} 历史数据异常: {e!s}")
         return None
 
+
 def get_all_entities() -> list[dict[str, Any]] | None:
     """
     获取所有实体的列表
-    
-    :return: 实体列表，如果获取失败返回None
+
+    :return: 实体列表, 如果获取失败返回None
     """
     try:
         url = f"{HA_URL}/api/states"
@@ -97,18 +92,28 @@ def get_all_entities() -> list[dict[str, Any]] | None:
         logger.error(f"获取所有实体异常: {e!s}")
         return None
 
+
 def main() -> None:
     """
-    主函数，用于直接运行实体分析
+    主函数, 用于直接运行实体分析
     """
+    # 加载环境变量（仅在作为主程序运行时）
+    load_dotenv()
+
+    # 延迟导入模块（避免测试时触发连接）
+    from backend.source.api_layer.home_assistant import hass_manager as _hass_manager
+    from backend.source.home_assistant_llm_controller_langgraph import (
+        hass_llm_controller_langgraph as _hass_llm_controller,
+    )
+
     logger.info("开始实体分析...")
 
     # 获取实体数据
-    sensor_data, non_sensor_data = hass_manager.get_and_classify_entities()
+    sensor_data, non_sensor_data = _hass_manager.get_and_classify_entities()
     # 更新实体数据
-    entity_excel_file = hass_manager.export_to_excel(sensor_data, non_sensor_data)
+    entity_excel_file = _hass_manager.export_to_excel(sensor_data, non_sensor_data)
 
-    # 打印实体统计信息（从get_sensor.py合并）
+    # 打印实体统计信息(从get_sensor.py合并)
     logger.info("\n实体统计信息:")
 
     if sensor_data:
@@ -123,7 +128,7 @@ def main() -> None:
             logger.info(f"- {entity_type}: {len(entities)}个")
 
     # 运行分析
-    summary, analysis = hass_llm_controller.analyze_entities(sensor_data, non_sensor_data)
+    summary, analysis = _hass_llm_controller.analyze_entities(sensor_data, non_sensor_data)
 
     # 打印分析结果
     logger.info("\n实体摘要:")
@@ -133,7 +138,7 @@ def main() -> None:
     logger.info(analysis)
 
     # 保存结果
-    summary_file, analysis_file = hass_llm_controller.save_analysis_results(summary, analysis)
+    summary_file, analysis_file = _hass_llm_controller.save_analysis_results(summary, analysis)
 
     if summary_file and analysis_file and entity_excel_file:
         logger.info("\n分析结果已保存到以下文件:")
@@ -145,6 +150,7 @@ def main() -> None:
         logger.error(f"- 实体摘要: {summary_file}")
         logger.error(f"- 分析报告: {analysis_file}")
         logger.error(f"- 实体Excel文件: {entity_excel_file}")
+
 
 if __name__ == "__main__":
     main()

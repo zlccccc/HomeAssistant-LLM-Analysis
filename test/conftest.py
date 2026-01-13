@@ -4,6 +4,7 @@ Pytest configuration and shared fixtures
 This file contains common fixtures and configuration for all tests.
 Run with: uv run pytest
 """
+
 import asyncio
 import os
 import sys
@@ -12,14 +13,13 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from dotenv import load_dotenv
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-# Load environment variables
-load_dotenv()
+# 注意: 测试中不应自动加载 .env 文件
+# 单元测试使用 mock 配置，集成测试手动加载 load_dotenv()
 
 
 # ============== Fixtures for testing ==============
@@ -268,10 +268,7 @@ def mock_hass_manager():
     mock.url = "http://localhost:8123"
     mock.headers = {"Authorization": "Bearer test_token", "Content-Type": "application/json"}
     mock.entity_data = {
-        "sensor_data": {
-            "numeric_sensors": [],
-            "text_sensors": []
-        },
+        "sensor_data": {"numeric_sensors": [], "text_sensors": []},
         "non_sensor_data": {
             "light": [
                 {
@@ -279,11 +276,11 @@ def mock_hass_manager():
                     "friendly_name": "客厅灯",
                     "state": "off",
                     "last_updated": "2024-01-13 10:30:00",
-                    "external_attributes": {}
+                    "external_attributes": {},
                 }
             ],
-            "switch": []
-        }
+            "switch": [],
+        },
     }
     mock.update_entity_data = MagicMock()
     mock.get_mcp_tools = AsyncMock(return_value=None)
@@ -327,10 +324,10 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.unit)
 
         # Skip tests that require external services if not available
-        if item.get_closest_marker("requires_ha"):
-            if not os.getenv("HA_URL") or not os.getenv("HA_TOKEN"):
-                item.add_marker(pytest.mark.skip(reason="Home Assistant not configured"))
+        if item.get_closest_marker("requires_ha") and (
+            not os.getenv("HA_URL") or not os.getenv("HA_TOKEN")
+        ):
+            item.add_marker(pytest.mark.skip(reason="Home Assistant not configured"))
 
-        if item.get_closest_marker("requires_llm"):
-            if not os.getenv("QWEN_API_KEY"):
-                item.add_marker(pytest.mark.skip(reason="LLM API key not configured"))
+        if item.get_closest_marker("requires_llm") and not os.getenv("QWEN_API_KEY"):
+            item.add_marker(pytest.mark.skip(reason="LLM API key not configured"))

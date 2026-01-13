@@ -2,6 +2,7 @@ import base64
 import json
 import os
 import time
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -19,16 +20,19 @@ class QwenSpeechManager:
     def __init__(self):
         # 从环境变量读取API配置
         self.api_key = os.getenv("QWEN_API_KEY", "")
-        self.api_base = os.getenv("QWEN_API_BASE", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+        self.api_base = os.getenv(
+            "QWEN_API_BASE", "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        )
         self.model = os.getenv("QWEN_MODEL", "qwen-flash")
 
         # 输出目录设置为当前运行路径下的output目录
         output_dir_name = os.getenv("OUTPUT_DIR", "output")
-        self.output_dir = os.path.join(os.getcwd(), output_dir_name)
+        self.output_dir = str(Path.cwd() / output_dir_name)
 
         # 确保输出目录存在
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
+        output_dir_path = Path(self.output_dir)
+        if not output_dir_path.exists():
+            output_dir_path.mkdir(parents=True, exist_ok=True)
             logger.info(f"创建输出目录: {self.output_dir}")
 
         # ASR和TTS的模型名称 - 从环境变量获取
@@ -54,23 +58,24 @@ class QwenSpeechManager:
         """
         try:
             logger.info(f"开始语音识别，文件：{audio_file}")
-            start_time = time.time()
+            time.time()
 
             # 检查文件是否存在
-            if not os.path.exists(audio_file):
+            audio_path = Path(audio_file)
+            if not audio_path.exists():
                 error_msg = f"错误：音频文件不存在 - {audio_file}"
                 logger.error(error_msg)
                 self.asr_failure_count += 1
                 return None
 
             # 获取文件大小以记录信息
-            file_size = os.path.getsize(audio_file) / (1024 * 1024)  # 转换为MB
+            file_size = Path(audio_file).stat().st_size / (1024 * 1024)  # 转换为MB
             logger.info(f"音频文件大小: {file_size:.2f}MB, 格式: {format_type}")
 
             # 读取音频文件并进行base64编码
             try:
-                with open(audio_file, 'rb') as f:
-                    audio_data = base64.b64encode(f.read()).decode('utf-8')
+                with audio_path.open("rb") as f:
+                    audio_data = base64.b64encode(f.read()).decode("utf-8")
                 logger.info(f"音频文件已读取并编码，base64长度: {len(audio_data)}")
             except Exception as e:
                 error_msg = f"读取音频文件失败: {e!s}"
@@ -83,36 +88,20 @@ class QwenSpeechManager:
                 "model": self.asr_model,
                 "input": {
                     "messages": [
+                        {"content": [{"text": ""}], "role": "system"},
                         {
-                            "content": [
-                                {
-                                    "text": ""
-                                }
-                            ],
-                            "role": "system"
+                            "content": [{"audio": f"data:audio/{format_type};base64,{audio_data}"}],
+                            "role": "user",
                         },
-                        {
-                            "content": [
-                                {
-                                    "audio": f"data:audio/{format_type};base64,{audio_data}"
-                                }
-                            ],
-                            "role": "user"
-                        }
                     ]
                 },
-                "parameters": {
-                    "asr_options": {
-                        "enable_lid": True,
-                        "enable_itn": False
-                    }
-                }
+                "parameters": {"asr_options": {"enable_lid": True, "enable_itn": False}},
             }
 
             # 构建请求头
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}"
+                "Authorization": f"Bearer {self.api_key}",
             }
 
             # 使用DashScope API端点
@@ -120,12 +109,7 @@ class QwenSpeechManager:
 
             # 发送请求
             try:
-                response = requests.post(
-                    api_endpoint,
-                    headers=headers,
-                    json=params,
-                    timeout=30
-                )
+                response = requests.post(api_endpoint, headers=headers, json=params, timeout=30)
 
                 if response.status_code == 200:
                     result = response.json()
@@ -175,10 +159,7 @@ class QwenSpeechManager:
             truncated_text = ""
             for char in text:
                 # 判断是否为汉字（基本汉字范围）
-                if '\u4e00' <= char <= '\u9fff':
-                    char_count = 2
-                else:
-                    char_count = 1
+                char_count = 2 if "一" <= char <= "\u9fff" else 1
 
                 # 检查是否超过限制
                 if total_chars + char_count > 600:
@@ -193,11 +174,7 @@ class QwenSpeechManager:
                 text = truncated_text
 
             # 映射voice参数到DashScope支持的声音名称
-            voice_mapping = {
-                "female": "Cherry",
-                "male": "Ryan",
-                "neutral": "Sarah"
-            }
+            voice_mapping = {"female": "Cherry", "male": "Ryan", "neutral": "Sarah"}
             dashscope_voice = voice_mapping.get(voice, "Cherry")
 
             # 构建请求参数，使用DashScope API格式
@@ -206,29 +183,28 @@ class QwenSpeechManager:
                 "input": {
                     "text": text,
                     "voice": dashscope_voice,
-                    "language_type": "Chinese"  # 根据需要可调整为其他支持的语言
-                }
+                    "language_type": "Chinese",  # 根据需要可调整为其他支持的语言
+                },
             }
             # 构建请求头
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}"
+                "Authorization": f"Bearer {self.api_key}",
             }
             # 使用DashScope API端点
             api_endpoint = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
             # 发送请求到DashScope TTS服务
             try:
-                response = requests.post(
-                    api_endpoint,
-                    headers=headers,
-                    json=params,
-                    timeout=30
-                )
+                response = requests.post(api_endpoint, headers=headers, json=params, timeout=30)
 
                 if response.status_code == 200:
                     result = response.json()
                     # 处理DashScope API响应，提取音频URL
-                    if "output" in result and "audio" in result["output"] and "url" in result["output"]["audio"]:
+                    if (
+                        "output" in result
+                        and "audio" in result["output"]
+                        and "url" in result["output"]["audio"]
+                    ):
                         audio_url = result["output"]["audio"]["url"]
                         logger.info(f"获取到音频URL: {audio_url}")
 
@@ -237,7 +213,8 @@ class QwenSpeechManager:
                             audio_response = requests.get(audio_url, timeout=30)
                             if audio_response.status_code == 200:
                                 # 保存下载的音频数据到文件
-                                with open(output_file, 'wb') as f:
+                                output_path = Path(output_file)
+                                with output_path.open("wb") as f:
                                     f.write(audio_response.content)
                                 logger.info(f"语音合成成功，音频文件已下载并保存: {output_file}")
 
@@ -294,6 +271,7 @@ class QwenSpeechManager:
         # 方法1: 尝试使用pygame播放音频
         try:
             import pygame
+
             pygame.mixer.init()
             pygame.mixer.music.load(audio_file)
             pygame.mixer.music.play()
@@ -308,6 +286,7 @@ class QwenSpeechManager:
         # 方法2: 尝试使用playsound播放音频
         try:
             from playsound import playsound
+
             playsound(audio_file)
             return
         except Exception as playsound_error:
@@ -317,6 +296,7 @@ class QwenSpeechManager:
         try:
             from pydub import AudioSegment
             from pydub.playback import play
+
             audio = AudioSegment.from_wav(audio_file)
             play(audio)
             return
@@ -330,12 +310,12 @@ class QwenSpeechManager:
             import subprocess
 
             system = platform.system()
-            if system == 'Windows':
+            if system == "Windows":
                 os.startfile(audio_file)
-            elif system == 'Darwin':  # macOS
-                subprocess.run(['open', audio_file])
-            elif system == 'Linux':
-                subprocess.run(['xdg-open', audio_file])
+            elif system == "Darwin":  # macOS
+                subprocess.run(["open", audio_file])
+            elif system == "Linux":
+                subprocess.run(["xdg-open", audio_file])
             else:
                 raise Exception(f"不支持的操作系统: {system}")
             return
@@ -358,5 +338,28 @@ class QwenSpeechManager:
             "last_tts_time": self.last_tts_time,
         }
 
-# 创建全局实例供其他模块使用
-qwen_speech_manager = QwenSpeechManager()
+
+# 创建全局实例（使用延迟初始化）
+_qwen_speech_manager: QwenSpeechManager | None = None
+
+
+def get_qwen_speech_manager() -> QwenSpeechManager:
+    """获取全局QwenSpeechManager实例（延迟初始化）"""
+    global _qwen_speech_manager
+    if _qwen_speech_manager is None:
+        _qwen_speech_manager = QwenSpeechManager()
+    return _qwen_speech_manager
+
+
+# 为了向后兼容，创建一个属性访问器
+class _QwenSpeechManagerProxy:
+    """代理类，用于延迟初始化qwen_speech_manager"""
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(get_qwen_speech_manager(), name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        setattr(get_qwen_speech_manager(), name, value)
+
+
+qwen_speech_manager = _QwenSpeechManagerProxy()  # type: ignore[misc]

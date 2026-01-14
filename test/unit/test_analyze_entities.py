@@ -3,8 +3,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# Add backend to Python path to import modules
-sys.path.insert(0, str(Path(__file__).parent / ".."))
+# Add frontend/tools to Python path to import modules
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "frontend" / "tools"))
 
 from analyze_entities import get_all_entities, get_entity_info
 

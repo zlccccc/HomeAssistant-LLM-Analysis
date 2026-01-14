@@ -7,8 +7,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from backend.source.base_layer.utils import logger
-from backend.source.home_assistant_llm_controller_langgraph import (
+from backend.source.infrastructure.utils import logger
+from backend.source.services.langgraph_controller import (
     hass_llm_controller_langgraph as hass_llm_controller,
 )
 from frontend.api_layer.qwen_speech_model import qwen_speech_manager

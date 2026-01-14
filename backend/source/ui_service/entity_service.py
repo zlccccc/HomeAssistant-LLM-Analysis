@@ -7,10 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from backend.source.api_layer.home_assistant import hass_manager
-from backend.source.base_layer.utils import logger
-from backend.source.home_assistant_llm_controller_langgraph import (
-    hass_llm_controller_langgraph as hass_llm_controller,
-)
+from backend.source.infrastructure.utils import logger
+from backend.source.services.entity_analyzer import entity_analyzer
 
 
 class EntityService:
@@ -376,12 +374,12 @@ class EntityService:
             sensor_data = entity_data.get("sensor_data", {})
             non_sensor_data = entity_data.get("non_sensor_data", {})
 
-            summary, analysis = hass_llm_controller.analyze_entities(
+            summary, analysis = entity_analyzer.analyze_entities(
                 sensor_data,
                 non_sensor_data,
             )
 
-            summary_file, analysis_file = hass_llm_controller.save_analysis_results(
+            summary_file, analysis_file = entity_analyzer.save_analysis_results(
                 summary, analysis
             )
 

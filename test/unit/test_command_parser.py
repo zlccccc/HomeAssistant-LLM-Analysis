@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-from backend.source.command_parser import CommandParser
+from backend.source.services.command_parser import CommandParser
 
 
 class TestCommandParser:

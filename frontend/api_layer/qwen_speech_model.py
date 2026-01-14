@@ -8,7 +8,7 @@ from typing import Any
 import requests
 
 # 导入日志记录器
-from backend.source.base_layer.utils import logger
+from backend.source.infrastructure.utils import logger
 
 
 class QwenSpeechManager:

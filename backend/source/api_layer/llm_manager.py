@@ -4,7 +4,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
-from backend.source.base_layer.utils import logger
+from backend.source.infrastructure.utils import logger
 
 
 class LLMManager:

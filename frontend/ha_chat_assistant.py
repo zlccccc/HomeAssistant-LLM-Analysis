@@ -16,7 +16,7 @@ from backend.source.ui_service.entity_service import entity_service
 from backend.source.ui_service.chat_service import chat_service
 
 # 导入日志工具
-from backend.source.base_layer.utils import logger
+from backend.source.infrastructure.utils import logger
 from frontend.api_layer.qwen_speech_model import qwen_speech_manager
 
 # Load environment variables BEFORE importing modules that depend on them

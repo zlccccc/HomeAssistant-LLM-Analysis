@@ -10,7 +10,7 @@ import requests
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 # 导入日志记录器
-from backend.source.base_layer.utils import logger
+from backend.source.infrastructure.utils import logger
 
 
 class HomeAssistantManager:

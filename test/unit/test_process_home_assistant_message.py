@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 # Add backend to Python path to import modules
 sys.path.insert(0, str(Path(__file__).parent / ".."))
 
-from backend.source.home_assistant_llm_controller_langgraph import hass_llm_controller_langgraph
+from backend.source.services.langgraph_controller import hass_llm_controller_langgraph
 
 load_dotenv()
 

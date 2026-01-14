@@ -8,7 +8,7 @@ from typing import Any
 
 from memu.app import MemoryService
 
-from backend.source.base_layer.utils import logger
+from backend.source.infrastructure.utils import logger
 
 
 class MemoryManager:

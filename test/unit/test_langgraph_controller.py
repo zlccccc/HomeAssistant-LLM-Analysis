@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from backend.source.home_assistant_llm_controller_langgraph import (
+from backend.source.services.langgraph_controller import (
     HomeAssistantLLMControllerLangGraph,
     State,
 )
@@ -29,7 +29,7 @@ class TestHomeAssistantLLMControllerLangGraphInit:
     def test_controller_initialization(self, mock_hass_manager):
         """Test controller can be initialized"""
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
             assert controller is not None
@@ -41,7 +41,7 @@ class TestHomeAssistantLLMControllerLangGraphInit:
         """Test controller handles None entity_data during initialization"""
         mock_hass_manager.entity_data = None
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
             assert controller is not None
@@ -51,7 +51,7 @@ class TestHomeAssistantLLMControllerLangGraphInit:
         """Test controller handles empty entity_data"""
         mock_hass_manager.entity_data = {}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
             assert controller is not None
@@ -93,7 +93,7 @@ class TestAnalyzeMessage:
             "non_sensor_data": {"light": []},
         }
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
             state = State(
@@ -110,7 +110,7 @@ class TestAnalyzeMessage:
         """Test analyzing message when hass_manager has None entity_data"""
         mock_hass_manager.entity_data = None
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
             state = State(messages=[{"role": "user", "content": "test"}], entity_data=None)
@@ -129,7 +129,7 @@ class TestCheckForCommand:
         """Test checking for valid executable command"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
             # Mock the command parser to return a successful execution
@@ -152,7 +152,7 @@ class TestCheckForCommand:
         """Test checking when message doesn't contain executable command"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
             # Mock to return a non-executable result
@@ -174,7 +174,7 @@ class TestCheckForCommand:
         """Test checking for command with empty message list"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
             controller.command_parser.parse_and_execute_command = Mock(
@@ -196,7 +196,7 @@ class TestShouldExecuteCommand:
         """Test returns 'execute' when command should execute"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
             state = State(parsed_command={"should_execute": True})
@@ -208,7 +208,7 @@ class TestShouldExecuteCommand:
         """Test returns 'respond' when command should not execute"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
             state = State(parsed_command={"should_execute": False})
@@ -220,7 +220,7 @@ class TestShouldExecuteCommand:
         """Test returns 'respond' when parsed_command is None"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
             state = State(parsed_command=None)
@@ -237,7 +237,7 @@ class TestExecuteCommand:
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         mock_hass_manager.update_entity_data = Mock()
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
             controller.command_parser.parse_and_execute_command = Mock(
@@ -265,7 +265,7 @@ class TestExecuteCommand:
         mock_hass_manager.entity_data = new_entity_data
         mock_hass_manager.update_entity_data = Mock()
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
             controller.command_parser.parse_and_execute_command = Mock(return_value="成功执行")
@@ -289,7 +289,7 @@ class TestGenerateDeviceOverview:
         """Test generating overview with complete device data"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -331,7 +331,7 @@ class TestGenerateDeviceOverview:
         """Test generating overview with None entity_data"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -343,7 +343,7 @@ class TestGenerateDeviceOverview:
         """Test generating overview with empty data"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -355,7 +355,7 @@ class TestGenerateDeviceOverview:
         """Test generating overview truncates device list"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -387,7 +387,7 @@ class TestPrepareEntityDescription:
         """Test preparing entity description"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -422,7 +422,7 @@ class TestPrepareEntityDescription:
         """Test preparing description with None data"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -439,7 +439,7 @@ class TestCountEntities:
         """Test counting entities in a list"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -450,7 +450,7 @@ class TestCountEntities:
         """Test counting entities in a dict"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -462,7 +462,7 @@ class TestCountEntities:
         """Test counting entities in nested dict"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -474,7 +474,7 @@ class TestCountEntities:
         """Test counting entities with invalid type"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -485,7 +485,7 @@ class TestCountEntities:
         """Test counting entities in empty list"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -504,11 +504,11 @@ class TestAnalyzeEntities:
         )
         with (
             patch(
-                "backend.source.home_assistant_llm_controller_langgraph.hass_manager",
+                "backend.source.services.langgraph_controller.hass_manager",
                 mock_hass_manager,
             ),
             patch(
-                "backend.source.home_assistant_llm_controller_langgraph.llm_manager",
+                "backend.source.services.entity_analyzer.llm_manager",
                 mock_llm_manager,
             ),
         ):
@@ -534,11 +534,11 @@ class TestAnalyzeEntities:
         mock_llm_manager.call_openai_api = Mock(side_effect=["Analysis", "Summary"])
         with (
             patch(
-                "backend.source.home_assistant_llm_controller_langgraph.hass_manager",
+                "backend.source.services.langgraph_controller.hass_manager",
                 mock_hass_manager,
             ),
             patch(
-                "backend.source.home_assistant_llm_controller_langgraph.llm_manager",
+                "backend.source.services.entity_analyzer.llm_manager",
                 mock_llm_manager,
             ),
         ):
@@ -555,11 +555,11 @@ class TestAnalyzeEntities:
         mock_llm_manager.call_openai_api = Mock(side_effect=Exception("LLM error"))
         with (
             patch(
-                "backend.source.home_assistant_llm_controller_langgraph.hass_manager",
+                "backend.source.services.langgraph_controller.hass_manager",
                 mock_hass_manager,
             ),
             patch(
-                "backend.source.home_assistant_llm_controller_langgraph.llm_manager",
+                "backend.source.services.entity_analyzer.llm_manager",
                 mock_llm_manager,
             ),
         ):
@@ -579,11 +579,11 @@ class TestSaveAnalysisResults:
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with (
             patch(
-                "backend.source.home_assistant_llm_controller_langgraph.hass_manager",
+                "backend.source.services.langgraph_controller.hass_manager",
                 mock_hass_manager,
             ),
             patch(
-                "backend.source.home_assistant_llm_controller_langgraph.OUTPUT_DIR", str(tmp_path)
+                "backend.source.services.entity_analyzer.OUTPUT_DIR", str(tmp_path)
             ),
         ):
             controller = HomeAssistantLLMControllerLangGraph()
@@ -611,11 +611,11 @@ class TestSaveAnalysisResults:
         """Test save creates output directory if it doesn't exist"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             output_dir = tmp_path / "new_output"
             with patch(
-                "backend.source.home_assistant_llm_controller_langgraph.OUTPUT_DIR", str(output_dir)
+                "backend.source.services.entity_analyzer.OUTPUT_DIR", str(output_dir)
             ):
                 controller = HomeAssistantLLMControllerLangGraph()
 
@@ -633,7 +633,7 @@ class TestMemoryMessages:
         """Test memory messages in synchronous context"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -655,7 +655,7 @@ class TestMemoryMessages:
         """Test memory messages skips already memorized messages"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -676,7 +676,7 @@ class TestMemoryMessages:
 class TestBuildSystemPrompt:
     """Test _build_system_prompt method"""
 
-    @patch("backend.source.home_assistant_llm_controller_langgraph.memory_manager")
+    @patch("backend.source.services.langgraph_controller.memory_manager")
     def test_build_system_prompt_with_memory(self, mock_memory_manager, mock_hass_manager):
         """Test building system prompt with memory"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
@@ -684,7 +684,7 @@ class TestBuildSystemPrompt:
             return_value="User prefers cool temperature"
         )
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -704,13 +704,13 @@ class TestBuildSystemPrompt:
             # 2. Test that memory_manager would be called (verified by mock)
             assert callable(mock_memory_manager.retrieve_memory_info)
 
-    @patch("backend.source.home_assistant_llm_controller_langgraph.memory_manager")
+    @patch("backend.source.services.langgraph_controller.memory_manager")
     def test_build_system_prompt_without_memory(self, mock_memory_manager, mock_hass_manager):
         """Test building system prompt without memory"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         mock_memory_manager.retrieve_memory_info = AsyncMock(return_value="")
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -736,7 +736,7 @@ class TestProcessHomeAssistantMessage:
             "non_sensor_data": {"light": []},
         }
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -754,7 +754,7 @@ class TestProcessHomeAssistantMessage:
             "non_sensor_data": {},
         }
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -777,7 +777,7 @@ class TestProcessHomeAssistantMessage:
             "non_sensor_data": {},
         }
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -799,7 +799,7 @@ class TestProcessHomeAssistantMessage:
         mock_hass_manager.update_entity_data = Mock()
         mock_hass_manager.entity_data = None
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -818,7 +818,7 @@ class TestProcessHomeAssistantMessage:
             "non_sensor_data": {"light": [{"entity_id": "light.test", "state": "off"}]},
         }
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -835,7 +835,7 @@ class TestProcessHomeAssistantMessage:
             "non_sensor_data": {},
         }
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -854,7 +854,7 @@ class TestProcessHomeAssistantMessage:
             "non_sensor_data": {},
         }
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -872,7 +872,7 @@ class TestGraphStructure:
         """Test graph has all required nodes"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 
@@ -888,7 +888,7 @@ class TestGraphStructure:
         """Test graph entry point is correctly configured"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
-            "backend.source.home_assistant_llm_controller_langgraph.hass_manager", mock_hass_manager
+            "backend.source.services.langgraph_controller.hass_manager", mock_hass_manager
         ):
             controller = HomeAssistantLLMControllerLangGraph()
 

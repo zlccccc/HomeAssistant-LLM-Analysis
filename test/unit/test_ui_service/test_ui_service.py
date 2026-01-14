@@ -218,16 +218,16 @@ class TestEntityService:
 
     # ==================== 实体分析测试 ====================
 
-    @patch("backend.source.ui_service.entity_service.hass_llm_controller")
+    @patch("backend.source.ui_service.entity_service.entity_analyzer")
     @patch("backend.source.ui_service.entity_service.hass_manager")
-    def test_analyze_all_entities_success(self, mock_hass, mock_llm):
+    def test_analyze_all_entities_success(self, mock_hass, mock_analyzer):
         """测试分析所有实体 - 成功"""
         mock_hass.entity_data = {
             "sensor_data": {},
             "non_sensor_data": {}
         }
-        mock_llm.analyze_entities.return_value = ("summary", "analysis")
-        mock_llm.save_analysis_results.return_value = ("summary.json", "analysis.json")
+        mock_analyzer.analyze_entities.return_value = ("summary", "analysis")
+        mock_analyzer.save_analysis_results.return_value = ("summary.json", "analysis.json")
 
         service = EntityService()
         result = service.analyze_all_entities()
@@ -235,15 +235,15 @@ class TestEntityService:
         assert result["success"] is True
         assert "分析完成" in result["message"]
 
-    @patch("backend.source.ui_service.entity_service.hass_llm_controller")
+    @patch("backend.source.ui_service.entity_service.entity_analyzer")
     @patch("backend.source.ui_service.entity_service.hass_manager")
-    def test_analyze_all_entities_failure(self, mock_hass, mock_llm):
+    def test_analyze_all_entities_failure(self, mock_hass, mock_analyzer):
         """测试分析所有实体 - 失败"""
         mock_hass.entity_data = {
             "sensor_data": {},
             "non_sensor_data": {}
         }
-        mock_llm.analyze_entities.side_effect = Exception("Test error")
+        mock_analyzer.analyze_entities.side_effect = Exception("Test error")
 
         service = EntityService()
         result = service.analyze_all_entities()

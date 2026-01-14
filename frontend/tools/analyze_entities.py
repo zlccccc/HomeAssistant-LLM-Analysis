@@ -5,7 +5,7 @@ import requests
 from dotenv import load_dotenv
 
 # 导入日志工具
-from backend.source.base_layer.utils import logger
+from backend.source.infrastructure.utils import logger
 
 # 读取环境变量（不自动加载 .env，由调用者决定）
 HA_URL = os.getenv("HA_URL", "http://localhost:8123")
@@ -102,7 +102,7 @@ def main() -> None:
 
     # 延迟导入模块（避免测试时触发连接）
     from backend.source.api_layer.home_assistant import hass_manager as _hass_manager
-    from backend.source.home_assistant_llm_controller_langgraph import (
+    from backend.source.services.langgraph_controller import (
         hass_llm_controller_langgraph as _hass_llm_controller,
     )
 

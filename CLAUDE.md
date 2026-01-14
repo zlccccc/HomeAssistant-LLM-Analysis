@@ -189,3 +189,7 @@ async def process_home_assistant_message(
 - Use `@pytest.mark.requires_ha` or `@pytest.mark.requires_llm` for integration tests
 
 **Before committing, run**: `./scripts/dev.sh test-fast && ./scripts/dev.sh format && ./scripts/dev.sh lint`
+
+**更新结束后git commit前先做询问**
+
+**用uv环境，不要直接python**

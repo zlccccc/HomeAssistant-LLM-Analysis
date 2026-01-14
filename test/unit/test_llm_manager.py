@@ -162,51 +162,6 @@ class TestLLMManager:
 
             assert result is not None
 
-    # ============== generate_summary Tests ==============
-
-    @patch("backend.source.api_layer.llm_manager.ChatOpenAI")
-    def test_generate_summary(self, mock_chat, mock_llm_config):
-        """Test text summarization."""
-        mock_llm_instance = MagicMock()
-        mock_response = MagicMock()
-        mock_response.content = "Summary: This is a summary"
-        mock_llm_instance.invoke.return_value = mock_response
-        mock_llm_instance.temperature = 0.7
-        mock_llm_instance.max_tokens = 2048
-        mock_chat.return_value = mock_llm_instance
-
-        with patch.dict(os.environ, mock_llm_config, clear=False):
-            manager = LLMManager()
-            manager.llm = mock_llm_instance
-
-            text = "This is a long text that needs to be summarized."
-            result = manager.generate_summary(text, max_length=100)
-
-            assert result is not None
-
-    # ============== analyze_content Tests ==============
-
-    @patch("backend.source.api_layer.llm_manager.ChatOpenAI")
-    def test_analyze_content(self, mock_chat, mock_llm_config):
-        """Test content analysis."""
-        mock_llm_instance = MagicMock()
-        mock_response = MagicMock()
-        mock_response.content = "Temperature is 25 degrees"
-        mock_llm_instance.invoke.return_value = mock_response
-        mock_llm_instance.temperature = 0.7
-        mock_llm_instance.max_tokens = 2048
-        mock_chat.return_value = mock_llm_instance
-
-        with patch.dict(os.environ, mock_llm_config, clear=False):
-            manager = LLMManager()
-            manager.llm = mock_llm_instance
-
-            content = "The temperature is 25 degrees"
-            task = "Extract the temperature value"
-            result = manager.analyze_content(content, task)
-
-            assert result is not None
-
 
 class TestLLMManagerUnit:
     """Unit tests for LLMManager specific functionality."""

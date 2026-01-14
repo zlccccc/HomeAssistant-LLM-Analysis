@@ -68,7 +68,8 @@ class HomeAssistantLLMControllerLangGraph:
             msg for msg in state.messages if msg not in state.memorized_messages
         ]
 
-        if to_memorize_messages:
+        # 边界条件检查：只有在有消息需要记忆且记忆管理器可用时才执行
+        if to_memorize_messages and memory_manager.memory:
             try:
                 await memory_manager.memorize_messages(to_memorize_messages)
             except Exception as e:
@@ -268,12 +269,13 @@ class HomeAssistantLLMControllerLangGraph:
         """
         构建系统提示，包含实体信息
         """
-        # 填充记忆 - 直接在异步上下文中调用
+        # 填充记忆 - 边界条件检查：记忆管理器可用时才调用
         retrieved_prompt = ""
-        try:
-            retrieved_prompt = await memory_manager.retrieve_memory_info()
-        except Exception as e:
-            logger.error(f"获取记忆信息失败: {e}")
+        if memory_manager.memory:
+            try:
+                retrieved_prompt = await memory_manager.retrieve_memory_info()
+            except Exception as e:
+                logger.error(f"获取记忆信息失败: {e}")
 
         # 生成设备概览 - 使用 entity_analyzer
         device_overview = entity_analyzer._generate_device_overview(entity_data)
@@ -317,36 +319,50 @@ class HomeAssistantLLMControllerLangGraph:
             >>> print(response)
             "好的，我来帮您打开客厅灯。"
         """
+        # 边界条件检查
+        if not message or not isinstance(message, str):
+            return "无效的消息"
+
+        message = message.strip()
+        if not message:
+            return "消息为空"
+
+        if not self.compiled_graph:
+            return "控制器未正确初始化"
+
         logger.info(f"接收到用户输入: {message[:100]}...")
         logger.info(f"开始处理Home Assistant消息: {message[:100]}...")
         start_time = datetime.now()
 
+        # 构建消息历史
+        messages = []
+        if history:
+            for h in history:
+                if isinstance(h, dict) and "role" in h and "content" in h:
+                    # 字典格式: {"role": "user/assistant", "content": "..."}
+                    messages.append(h)
+                elif isinstance(h, (tuple, list)) and len(h) >= 2:
+                    # 元组格式: (user_msg, assistant_msg)
+                    messages.append({"role": "user", "content": h[0]})
+                    messages.append({"role": "assistant", "content": h[1]})
+
+        messages.append({"role": "user", "content": message})
+        logger.debug(f"构建的消息历史包含 {len(messages)} 条消息")
+
+        # 更新实体数据
+        logger.info("更新Home Assistant实体数据")
+        hass_manager.update_entity_data()
+        entity_data_from_manager = hass_manager.entity_data or {}
+        entity_data = {
+            "sensor_data": entity_data_from_manager.get("sensor_data") or {},
+            "non_sensor_data": entity_data_from_manager.get("non_sensor_data") or {},
+        }
+        logger.info(
+            f"获取到实体数据 - 传感器: {len(entity_data['sensor_data'].get('numeric_sensors', []) + entity_data['sensor_data'].get('text_sensors', []))}, 设备: {sum(len(v) for v in entity_data['non_sensor_data'].values() if isinstance(v, list))}"
+        )
+
         try:
-            messages = []
-            if history:
-                for h in history:
-                    if isinstance(h, dict) and "role" in h and "content" in h:
-                        # 字典格式: {"role": "user/assistant", "content": "..."}
-                        messages.append(h)
-                    elif isinstance(h, (tuple, list)) and len(h) >= 2:
-                        # 元组格式: (user_msg, assistant_msg)
-                        messages.append({"role": "user", "content": h[0]})
-                        messages.append({"role": "assistant", "content": h[1]})
-
-            messages.append({"role": "user", "content": message})
-            logger.debug(f"构建的消息历史包含 {len(messages)} 条消息")
-
-            logger.info("更新Home Assistant实体数据")
-            hass_manager.update_entity_data()
-            entity_data_from_manager = hass_manager.entity_data or {}
-            entity_data = {
-                "sensor_data": entity_data_from_manager.get("sensor_data") or {},
-                "non_sensor_data": entity_data_from_manager.get("non_sensor_data") or {},
-            }
-            logger.info(
-                f"获取到实体数据 - 传感器: {len(entity_data['sensor_data'].get('numeric_sensors', []) + entity_data['sensor_data'].get('text_sensors', []))}, 设备: {sum(len(v) for v in entity_data['non_sensor_data'].values() if isinstance(v, list))}"
-            )
-
+            # 运行LangGraph处理流程
             logger.info("开始运行LangGraph处理流程")
             config = {"configurable": {"thread_id": "home_assistant_thread"}}
             result = await self.compiled_graph.ainvoke(

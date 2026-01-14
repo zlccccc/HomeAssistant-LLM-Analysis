@@ -155,6 +155,6 @@ Unit tests should not auto-load `.env` or connect to external services:
 
 ## Important Notes
 
-- Always use `uv run` instead of direct `python`
+- Always use `uv run python` / `uv run pip` instead of direct `python` / `pip`
 - Ask before git commit
 - Keep changes minimal and focused

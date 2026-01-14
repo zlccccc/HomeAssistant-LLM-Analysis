@@ -39,40 +39,6 @@ def get_entity_info(entity_id: str) -> dict[str, Any] | None:
         return None
 
 
-def get_entity_history(entity_id: str, hours: int = 24) -> list[dict[str, Any]] | None:
-    """
-    获取实体的历史数据
-
-    :param entity_id: 实体ID
-    :param hours: 历史数据的时间范围(小时)
-    :return: 历史数据列表, 如果获取失败返回None
-    """
-    try:
-        url = f"{HA_URL}/api/history/period"
-        # 计算开始时间(现在减去hours小时)
-        import datetime
-
-        start_time = (datetime.datetime.now() - datetime.timedelta(hours=hours)).isoformat()
-
-        params = {
-            "start_time": start_time,
-            "filter_entity_id": entity_id,
-            "end_time": datetime.datetime.now().isoformat(),
-        }
-
-        response = requests.get(url, headers=HEADERS, params=params, timeout=30)
-
-        if response.status_code == 200:
-            history_data = response.json()
-            return history_data[0] if history_data else []
-        else:
-            logger.error(f"获取实体 {entity_id} 历史数据失败: {response.status_code}")
-            return None
-    except Exception as e:
-        logger.error(f"获取实体 {entity_id} 历史数据异常: {e!s}")
-        return None
-
-
 def get_all_entities() -> list[dict[str, Any]] | None:
     """
     获取所有实体的列表

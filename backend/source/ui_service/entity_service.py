@@ -367,17 +367,24 @@ class EntityService:
             >>> "success" in result
             True
         """
+        hass_manager.update_entity_data()
+
+        entity_data = self._get_entity_data()
+        sensor_data = entity_data.get("sensor_data", {})
+        non_sensor_data = entity_data.get("non_sensor_data", {})
+
         try:
-            hass_manager.update_entity_data()
-
-            entity_data = self._get_entity_data()
-            sensor_data = entity_data.get("sensor_data", {})
-            non_sensor_data = entity_data.get("non_sensor_data", {})
-
             summary, analysis = entity_analyzer.analyze_entities(
                 sensor_data,
                 non_sensor_data,
             )
+
+            # 边界条件检查：分析结果是否有效
+            if not summary or not analysis:
+                return {
+                    "success": False,
+                    "message": "分析失败：分析结果为空",
+                }
 
             summary_file, analysis_file = entity_analyzer.save_analysis_results(
                 summary, analysis

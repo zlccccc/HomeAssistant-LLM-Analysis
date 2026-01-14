@@ -170,36 +170,6 @@ class HomeAssistantManager:
                 logger.warning(f"获取MCP工具失败: {e!s}")
             return None
 
-    def get_mcp_tools_sync(self) -> list | None:
-        """
-        获取MCP可用的工具(同步版本)
-        :return: 工具列表
-        """
-        try:
-            import asyncio
-
-            try:
-                loop = asyncio.get_running_loop()
-                # If we're in an async context, we can't use asyncio.run
-                logger.warning("已在异步上下文中, 无法使用同步方法获取MCP工具")
-                return None
-            except RuntimeError:
-                # No running loop, safe to create one
-                pass
-
-            async def _get_tools():
-                return await self.get_mcp_tools()
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                return loop.run_until_complete(_get_tools())
-            finally:
-                loop.close()
-        except Exception as e:
-            logger.error(f"同步获取MCP工具失败: {e!s}")
-            return None
-
     def get_and_classify_entities(
         self,
     ) -> tuple[dict[str, Any] | None, dict[str, list[dict[str, Any]]] | None]:

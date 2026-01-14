@@ -23,7 +23,6 @@ class QwenSpeechManager:
         self.api_base = os.getenv(
             "QWEN_API_BASE", "https://dashscope.aliyuncs.com/compatible-mode/v1"
         )
-        self.model = os.getenv("QWEN_MODEL", "qwen-flash")
 
         # 输出目录设置为当前运行路径下的output目录
         output_dir_name = os.getenv("OUTPUT_DIR", "output")

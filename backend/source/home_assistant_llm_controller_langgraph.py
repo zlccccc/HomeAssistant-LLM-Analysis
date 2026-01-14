@@ -33,8 +33,6 @@ class State(BaseModel):
     response: str = ""
     parsed_command: dict[str, Any] | None = None
     execution_result: str = ""
-    analysis_summary: str = ""
-    analysis_details: dict[str, Any] | None = None
 
 
 class HomeAssistantLLMControllerLangGraph:

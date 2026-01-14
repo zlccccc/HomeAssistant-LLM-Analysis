@@ -69,8 +69,6 @@ class TestStateModel:
         assert state.response == ""
         assert state.parsed_command is None
         assert state.execution_result == ""
-        assert state.analysis_summary == ""
-        assert state.analysis_details is None
 
     def test_state_with_values(self):
         """Test State can be initialized with values"""

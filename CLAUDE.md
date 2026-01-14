@@ -42,40 +42,46 @@ test-html    Generate HTML coverage at :9090
 format       Format code (ruff)
 lint         Run linter
 type-check   Run type checker (mypy)
-
-# Other
-run          Run the application
-analyze      Run entity analysis tool
 ```
 
-## Architecture
+## Project Structure
 
 ```
 frontend/ha_chat_assistant.py          # Gradio UI entry point
+frontend/tools/analyze_entities.py     # Entity analysis tool
+
 backend/source/
-├── home_assistant_llm_controller_langgraph.py  # LangGraph controller
-├── command_parser.py                  # Command parsing
-└── api_layer/
-    ├── home_assistant.py              # HA API client
-    ├── llm_manager.py                 # LLM client
-    ├── memory_manager.py              # MemU memory client
-    └── qwen_speech_model.py           # Speech (ASR/TTS)
+├── api_layer/
+│   ├── home_assistant.py              # HA API client
+│   ├── llm_manager.py                 # LLM client
+│   └── memory_manager.py              # MemU memory client
+├── services/
+│   ├── command_parser.py              # Command parsing
+│   ├── entity_analyzer.py             # Entity analysis
+│   └── langgraph_controller.py        # LangGraph controller
+├── infrastructure/
+│   └── utils.py                       # Shared utilities
+└── ui_service/
+    ├── chat_service.py                # Chat business logic
+    └── entity_service.py              # Entity business logic
+
+frontend/api_layer/
+└── qwen_speech_model.py               # Speech (ASR/TTS)
 ```
 
-## Test Markers
+## Testing
 
-- `unit`: No external deps
-- `integration`: May require external services
-- `slow`: Skip with `-m "not slow"`
-- `requires_ha`: Needs Home Assistant
-- `requires_llm`: Needs LLM API
+```
+test/
+├── unit/              # Unit tests (no external deps)
+├── integration/       # Integration tests (requires external services)
+├── scripts/           # Manual test scripts
+└── conftest.py        # Shared pytest fixtures
+```
 
-## Documentation
+**Test markers**: `unit`, `integration`, `slow`, `requires_ha`, `requires_llm`
 
-- `docs/README.md` - Project overview
-- `docs/SETUP.md` - Setup guide
-- `docs/README_MEMU.md` - MemU memory system
-- `openspec/AGENTS.md` - OpenSpec specification
+**Before committing**: `./scripts/dev.sh test-fast && ./scripts/dev.sh format && ./scripts/dev.sh lint`
 
 ---
 
@@ -83,67 +89,34 @@ backend/source/
 
 ### Error Logging
 
-**Always use `logger.error()` for exceptions**:
+Always use `logger.error()` for exceptions:
 
 ```python
-# ✅ Correct
 try:
     result = await some_async_function()
 except Exception as e:
     logger.error(f"操作失败: {e!s}")
-    import traceback
-    logger.error(f"详细错误: {traceback.format_exc()}")
+    logger.debug(f"详细错误: {traceback.format_exc()}")
 ```
-
-### Async Functions
-
-**Functions calling async operations must be `async` and use `await`**:
-
-```python
-# ✅ Correct
-async def _memory_messages(self, state: State):
-    result = await memory_manager.memorize_messages(messages)
-
-# ❌ Wrong - causes "no running event loop" errors
-def _memory_messages(self, state: State):
-    loop = asyncio.new_event_loop()  # Don't create new loops!
-```
-
-### Timeout Handling
-
-**Use `asyncio.wait_for` for operations that may hang**:
-
-```python
-result = await asyncio.wait_for(
-    some_async_operation(),
-    timeout=15.0
-)
-except asyncio.TimeoutError:
-    logger.warning("操作超时，跳过")
-```
-
-**Timeouts**:
-- `memorize_messages`: 15 seconds
-- `retrieve_memory_info`: 10 seconds
 
 ### Function Calls
 
-**Always use named parameters (keyword arguments)**:
+Always use named parameters (keyword arguments):
 
 ```python
 # ✅ Correct
-response = await hass_llm_controller.process_home_assistant_message(
+response = await controller.process_home_assistant_message(
     message="hello",
     history=history
 )
 
 # ❌ Wrong - unclear
-response = await hass_llm_controller.process_home_assistant_message("hello", history)
+response = await controller.process_home_assistant_message("hello", history)
 ```
 
 ### Function Documentation
 
-**Always include usage examples in docstrings**:
+Include usage examples in docstrings:
 
 ```python
 async def process_home_assistant_message(
@@ -172,24 +145,16 @@ async def process_home_assistant_message(
     """
 ```
 
-**Docstring format**:
-- `Args:` section documenting parameters
-- `Returns:` section documenting return value
-- `Example:` section with `>>>` prompt style
-- Show `await` for async functions
-
-## Testing Guidelines
-
 ### Test Isolation
 
-**Unit tests should not auto-load `.env` or connect to external services**:
+Unit tests should not auto-load `.env` or connect to external services:
 
 - Use `patch.dict(os.environ, {...})` for environment variables
 - Mock external API calls
 - Use `@pytest.mark.requires_ha` or `@pytest.mark.requires_llm` for integration tests
 
-**Before committing, run**: `./scripts/dev.sh test-fast && ./scripts/dev.sh format && ./scripts/dev.sh lint`
+## Important Notes
 
-**更新结束后git commit前先做询问**
-
-**用uv环境，不要直接python**
+- Always use `uv run` instead of direct `python`
+- Ask before git commit
+- Keep changes minimal and focused

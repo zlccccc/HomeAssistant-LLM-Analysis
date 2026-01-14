@@ -1,3 +1,12 @@
+"""Home Assistant 智能家居助手 - Gradio Web界面
+
+提供基于 Gradio 的 Web 界面，支持：
+- 智能对话控制
+- 设备控制
+- 传感器数据查看
+"""
+
+import tempfile
 from pathlib import Path
 
 import dotenv
@@ -29,11 +38,10 @@ def get_entity_data() -> dict:
     return hass_manager.entity_data
 
 
-# 设备控制选项卡相关函数
+# ==================== 设备控制选项卡 ====================
+
 def update_entity_groups(device_type: str) -> tuple[gr.Dropdown, gr.Dropdown, gr.Textbox]:
-    """
-    更新设备分组下拉框
-    """
+    """更新设备分组下拉框"""
     entity_data = get_entity_data()
     non_sensor_data = entity_data.get("non_sensor_data", {})
     if not device_type or device_type not in non_sensor_data:
@@ -54,9 +62,7 @@ def update_entity_groups(device_type: str) -> tuple[gr.Dropdown, gr.Dropdown, gr
 
 
 def update_entity_list(device_type: str, group_name: str) -> tuple[gr.Dropdown, gr.Textbox]:
-    """
-    更新设备列表下拉框
-    """
+    """更新设备列表下拉框"""
     entity_data = get_entity_data()
     non_sensor_data = entity_data.get("non_sensor_data", {})
     if not device_type or not group_name or device_type not in non_sensor_data:
@@ -77,9 +83,7 @@ def update_entity_list(device_type: str, group_name: str) -> tuple[gr.Dropdown, 
 
 
 def update_entity_status(device_type: str, group_name: str, entity_name: str) -> gr.Textbox:
-    """
-    更新设备状态显示
-    """
+    """更新设备状态显示"""
     entity_data = get_entity_data()
     non_sensor_data = entity_data.get("non_sensor_data", {})
     if not device_type or not group_name or not entity_name or device_type not in non_sensor_data:
@@ -104,9 +108,7 @@ def update_entity_status(device_type: str, group_name: str, entity_name: str) ->
 def control_entity(
     device_type: str, group_name: str, entity_name: str
 ) -> tuple[gr.Textbox, gr.Textbox]:
-    """
-    控制设备状态
-    """
+    """控制设备状态"""
     entity_data = get_entity_data()
     non_sensor_data = entity_data.get("non_sensor_data", {})
     if not device_type or not group_name or not entity_name or device_type not in non_sensor_data:
@@ -139,9 +141,7 @@ def control_entity(
 
 
 def refresh_device_list() -> tuple[gr.Dropdown, gr.Dropdown, gr.Dropdown, gr.Textbox]:
-    """
-    刷新设备列表
-    """
+    """刷新设备列表"""
     hass_manager.update_entity_data()
     entity_data = get_entity_data()
     non_sensor_data = entity_data.get("non_sensor_data", {})
@@ -160,11 +160,8 @@ def refresh_device_list() -> tuple[gr.Dropdown, gr.Dropdown, gr.Dropdown, gr.Tex
     )
 
 
-# 创建设备控制选项卡
 def create_device_control_tab():
-    """
-    创建设备控制选项卡
-    """
+    """创建设备控制选项卡"""
     entity_data = get_entity_data()
     non_sensor_data = entity_data.get("non_sensor_data", {})
     device_types = list(non_sensor_data.keys()) if non_sensor_data else []
@@ -218,23 +215,14 @@ def create_device_control_tab():
         fn=refresh_device_list, outputs=[device_type, entity_groups, entity_list, entity_status]
     )
 
-    with gr.Column():
-        gr.Markdown("## 设备控制")
-        gr.Row([device_type, entity_groups])
-        gr.Row([entity_list, entity_status])
-        gr.Row([control_btn, refresh_btn])
-    return (
-        device_type,
-        entity_groups,
-        entity_list,
-        entity_status,
-        control_btn,
-        refresh_btn,
-        control_result,
-    )
+    gr.Markdown("## 设备控制")
+    gr.Row([device_type, entity_groups])
+    gr.Row([entity_list, entity_status])
+    gr.Row([control_btn, refresh_btn])
 
 
-# 传感器数据选项卡相关函数
+# ==================== 传感器数据选项卡 ====================
+
 def _map_sensor_type(sensor_type: str) -> str:
     """
     转换UI中的传感器类型名称为后端使用的类型名称
@@ -250,9 +238,7 @@ def _map_sensor_type(sensor_type: str) -> str:
 
 
 def update_sensor_groups(sensor_type: str) -> tuple[gr.Dropdown, gr.Dropdown, gr.Textbox]:
-    """
-    更新传感器分组下拉框
-    """
+    """更新传感器分组下拉框"""
     backend_sensor_type = _map_sensor_type(sensor_type)
     if not backend_sensor_type:
         return (
@@ -280,9 +266,7 @@ def update_sensor_groups(sensor_type: str) -> tuple[gr.Dropdown, gr.Dropdown, gr
 
 
 def update_sensor_list(sensor_type: str, group_name: str) -> tuple[gr.Dropdown, gr.Textbox]:
-    """
-    更新传感器列表下拉框
-    """
+    """更新传感器列表下拉框"""
     backend_sensor_type = _map_sensor_type(sensor_type)
     if not backend_sensor_type or not group_name:
         return gr.Dropdown(choices=[], value=""), gr.Textbox(value="")
@@ -301,9 +285,7 @@ def update_sensor_list(sensor_type: str, group_name: str) -> tuple[gr.Dropdown, 
 
 
 def update_sensor_info(sensor_type: str, group_name: str, sensor_name: str) -> gr.Textbox:
-    """
-    更新传感器信息显示
-    """
+    """更新传感器信息显示"""
     backend_sensor_type = _map_sensor_type(sensor_type)
     if not backend_sensor_type or not group_name or not sensor_name:
         return gr.Textbox(value="")
@@ -341,9 +323,7 @@ def update_sensor_info(sensor_type: str, group_name: str, sensor_name: str) -> g
 
 
 def analyze_all_entities() -> gr.Textbox:
-    """
-    分析所有实体
-    """
+    """分析所有实体"""
     try:
         hass_manager.update_entity_data()
 
@@ -369,9 +349,7 @@ def analyze_all_entities() -> gr.Textbox:
 
 
 def refresh_sensor_list() -> tuple[gr.Dropdown, gr.Dropdown, gr.Dropdown, gr.Textbox]:
-    """
-    刷新传感器列表
-    """
+    """刷新传感器列表"""
     hass_manager.update_entity_data()
     return (
         gr.Dropdown(
@@ -383,11 +361,8 @@ def refresh_sensor_list() -> tuple[gr.Dropdown, gr.Dropdown, gr.Dropdown, gr.Tex
     )
 
 
-# 创建传感器数据选项卡
 def create_sensor_data_tab():
-    """
-    创建传感器数据选项卡
-    """
+    """创建传感器数据选项卡"""
     sensor_type = gr.Dropdown(
         label="传感器类型",
         choices=["numeric", "text"],
@@ -433,21 +408,13 @@ def create_sensor_data_tab():
         fn=refresh_sensor_list, outputs=[sensor_type, sensor_groups, sensor_list, sensor_info]
     )
 
-    with gr.Column():
-        gr.Markdown("## 传感器数据")
-        gr.Row([sensor_type, sensor_groups])
-        gr.Row([sensor_list, sensor_info])
-        gr.Row([analyze_btn, refresh_btn])
-    return (
-        sensor_type,
-        sensor_groups,
-        sensor_list,
-        sensor_info,
-        analyze_btn,
-        refresh_btn,
-        analyze_result,
-    )
+    gr.Markdown("## 传感器数据")
+    gr.Row([sensor_type, sensor_groups])
+    gr.Row([sensor_list, sensor_info])
+    gr.Row([analyze_btn, refresh_btn])
 
+
+# ==================== 智能对话选项卡 ====================
 
 async def process_message_wrapper(message: str, history: list) -> list[dict]:
     """
@@ -473,11 +440,10 @@ async def process_message_wrapper(message: str, history: list) -> list[dict]:
         {"role": "assistant", "content": response},
     ]
 
+    # 自动语音回复
     try:
-        import tempfile
-
-        temp_dir = tempfile.gettempdir()
-        output_file = str(Path(temp_dir) / "auto_response_audio.wav")
+        temp_dir = Path(tempfile.gettempdir())
+        output_file = str(temp_dir / "auto_response_audio.wav")
 
         success = qwen_speech_manager.text_to_audio(response, output_file, voice="female")
         if success:
@@ -490,61 +456,53 @@ async def process_message_wrapper(message: str, history: list) -> list[dict]:
     return updated_history
 
 
-# 创建对话选项卡
+async def recognize_and_auto_submit(audio, chat_history):
+    """语音识别并自动提交"""
+    if not audio:
+        return "", "请先录制语音", chat_history
+
+    status = "正在进行语音识别..."
+    logger.info(f"开始识别语音文件: {audio}")
+
+    try:
+        audio_path = Path(audio)
+
+        if not audio_path.exists():
+            return "", "错误：录音文件不存在或已损坏", chat_history
+
+        if audio_path.stat().st_size == 0:
+            return "", "错误：录音文件内容为空", chat_history
+
+        text = qwen_speech_manager.audio_to_text(audio)
+        if text:
+            status = f"语音识别成功: {text[:30]}...，正在自动提交..."
+
+            hass_manager.update_entity_data()
+
+            updated_history = await process_message_wrapper(text, chat_history)
+
+            status = f"语音识别成功: {text[:30]}...，已自动提交并生成回复"
+            return text, status, updated_history
+        else:
+            return "", "语音识别失败：可能是API密钥配置问题或网络连接问题", chat_history
+    except Exception as e:
+        error_msg = f"语音识别出错: {e!s}"
+        logger.error(error_msg)
+        import traceback
+        traceback.print_exc()
+        return "", error_msg, chat_history
+
+
 def create_chat_tab():
-    """
-    创建聊天标签页
-    """
-    # 创建聊天历史组件
+    """创建聊天标签页"""
     chat_history = gr.Chatbot(label="智能家居助手")
     user_input = gr.Textbox(label="请输入您的问题或命令")
     submit_btn = gr.Button("发送")
     clear_btn = gr.Button("清除对话历史")
 
-    # 语音功能组件
-    # 注意：实际录音功能由Audio组件的麦克风图标处理
-    audio_input = gr.Audio(sources=["microphone"], type="filepath", label="语音输入", visible=True)
-
-    # 添加语音识别状态显示
+    audio_input = gr.Audio(sources=["microphone"], type="filepath", label="语音输入")
     recognition_status = gr.Textbox(label="语音识别状态", interactive=False, value="就绪")
 
-    async def recognize_and_auto_submit(audio, chat_history):
-        if not audio:
-            return "", "请先录制语音", chat_history
-
-        status = "正在进行语音识别..."
-        logger.info(f"开始识别语音文件: {audio}")
-
-        try:
-            audio_path = Path(audio)
-
-            if not audio_path.exists():
-                return "", "错误：录音文件不存在或已损坏", chat_history
-
-            if audio_path.stat().st_size == 0:
-                return "", "错误：录音文件内容为空", chat_history
-
-            text = qwen_speech_manager.audio_to_text(audio)
-            if text:
-                status = f"语音识别成功: {text[:30]}...，正在自动提交..."
-
-                hass_manager.update_entity_data()
-
-                updated_history = await process_message_wrapper(text, chat_history)
-
-                status = f"语音识别成功: {text[:30]}...，已自动提交并生成回复"
-                return text, status, updated_history
-            else:
-                return "", "语音识别失败：可能是API密钥配置问题或网络连接问题", chat_history
-        except Exception as e:
-            error_msg = f"语音识别出错: {e!s}"
-            logger.error(error_msg)
-            import traceback
-
-            traceback.print_exc()
-            return "", error_msg, chat_history
-
-    # 设置事件处理
     submit_btn.click(
         fn=process_message_wrapper, inputs=[user_input, chat_history], outputs=[chat_history]
     )
@@ -557,66 +515,63 @@ def create_chat_tab():
         fn=lambda: ([], "", "就绪"), outputs=[chat_history, user_input, recognition_status]
     )
 
-    # 语音识别事件处理 - 使用自动提交功能
     audio_input.stop_recording(
         fn=recognize_and_auto_submit,
         inputs=[audio_input, chat_history],
         outputs=[user_input, recognition_status, chat_history],
     )
-    return chat_history, user_input, submit_btn, clear_btn
 
+    gr.Markdown("## 智能对话")
+    gr.Row([chat_history])
+    gr.Row([user_input, submit_btn])
+    gr.Row([audio_input, recognition_status])
+    gr.Row([clear_btn])
+
+
+# ==================== 主界面 ====================
 
 def create_gradio_interface():
-    """
-    创建Gradio界面
-    """
+    """创建Gradio界面"""
     logger.info("正在创建Gradio界面...")
 
-    # 创建标签页
     with gr.Blocks(title="智能家居助手") as interface:
         gr.Markdown("# 智能家居助手")
         gr.Markdown("## 基于Home Assistant和Qwen大模型的智能控制中心")
 
         with gr.Tabs():
             with gr.Tab("智能对话"):
-                # 调用函数但不使用返回值，因为UI已在函数内部构建
                 create_chat_tab()
 
             with gr.Tab("设备控制"):
-                # 调用函数但不使用返回值，因为UI已在函数内部构建
                 create_device_control_tab()
 
             with gr.Tab("传感器数据"):
-                # 调用函数但不使用返回值，因为UI已在函数内部构建
                 create_sensor_data_tab()
 
     return interface
 
 
-# 主函数
-def main(server_port):
+def main(server_port: int = 8083):
     """
     主函数
+
+    Args:
+        server_port: Web服务端口，默认8083
     """
     try:
-        # 创建并启动Gradio界面
         interface = create_gradio_interface()
         logger.info("Gradio界面创建完成")
-
-        # 启动界面
-        interface.launch(server_name="localhost", server_port=server_port, share=True, debug=True)
+        interface.launch(
+            server_name="localhost",
+            server_port=server_port,
+            share=True,
+            debug=True
+        )
     except Exception as e:
         logger.error(f"程序运行出错: {e!s}")
         import traceback
-
         traceback.print_exc()
 
 
-# 执行主函数
 if __name__ == "__main__":
-    try:
-        main(server_port=8083)  # Changed to port 8083 to avoid conflicts
-    except KeyboardInterrupt:
-        logger.info("\n程序已停止")
-    except Exception as e:
-        logger.error(f"程序运行出错: {e}")
+    main()

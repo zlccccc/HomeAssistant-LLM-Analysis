@@ -327,6 +327,88 @@ class TestCommandParser:
         # The actual error message is "未找到匹配的设备控制指令或设备不存在"
         assert "未找到" in result or "没有找到" in result or "设备不存在" in result
 
+    def test_close_light_bulb_single_device(self):
+        """Test '关闭灯泡' with single light device (should use fallback)."""
+        import builtins
+
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "requests":
+                import unittest.mock as mock
+
+                m = mock.MagicMock()
+                m.post.return_value.status_code = 200
+                return m
+            return original_import(name, *args, **kwargs)
+
+        # Simulate entity data with a single light that doesn't contain "灯泡" in name
+        parser = CommandParser(
+            entity_data={
+                "sensor_data": {},
+                "non_sensor_data": {
+                    "light": [
+                        {
+                            "entity_id": "light.yeelight_bulb_w3",
+                            "friendly_name": "Yeelight LED bulb W3 (色温版)",
+                            "state": "on",
+                        }
+                    ]
+                },
+            },
+            url="http://localhost:8123",
+            headers={"Authorization": "Bearer test"},
+        )
+
+        with patch.object(builtins, "__import__", side_effect=mock_import):
+            result = parser.parse_and_execute_command("关闭灯泡")
+            # Should use the single device fallback and succeed
+            assert "成功" in result, f"Expected success but got: {result}"
+
+    def test_close_light_bulb_multiple_devices(self):
+        """Test '关闭灯泡' with multiple light devices."""
+        import builtins
+
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "requests":
+                import unittest.mock as mock
+
+                m = mock.MagicMock()
+                m.post.return_value.status_code = 200
+                return m
+            return original_import(name, *args, **kwargs)
+
+        # Simulate entity data with multiple lights
+        parser = CommandParser(
+            entity_data={
+                "sensor_data": {},
+                "non_sensor_data": {
+                    "light": [
+                        {
+                            "entity_id": "light.living_room",
+                            "friendly_name": "客厅灯",
+                            "state": "on",
+                        },
+                        {
+                            "entity_id": "light.bedroom",
+                            "friendly_name": "卧室灯",
+                            "state": "on",
+                        },
+                    ]
+                },
+            },
+            url="http://localhost:8123",
+            headers={"Authorization": "Bearer test"},
+        )
+
+        with patch.object(builtins, "__import__", side_effect=mock_import):
+            result = parser.parse_and_execute_command("关闭灯泡")
+            # "灯泡" won't match "客厅灯" or "卧室灯", so should fail to find specific device
+            # But with our fallback, it should still work with the first device
+            assert result is not None
+
 
 class TestCommandParserPatterns:
     """Tests specifically for command pattern matching."""

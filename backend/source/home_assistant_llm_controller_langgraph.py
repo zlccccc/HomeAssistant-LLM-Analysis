@@ -60,7 +60,7 @@ class HomeAssistantLLMControllerLangGraph:
             self.graph = None
             self.compiled_graph = None
 
-    def _memory_messages(self, state: State) -> dict[str, Any]:
+    async def _memory_messages(self, state: State) -> dict[str, Any]:
         """
         记忆消息
         使用memory_manager存储对话消息
@@ -73,15 +73,9 @@ class HomeAssistantLLMControllerLangGraph:
 
         if to_memorize_messages:
             try:
-                import asyncio
-
-                asyncio.get_running_loop()
-                logger.debug("检测到正在运行的事件循环，跳过异步记忆调用")
-            except RuntimeError:
-                try:
-                    asyncio.run(memory_manager.memorize_messages(to_memorize_messages))
-                except Exception as e:
-                    logger.error(f"记忆操作失败: {e}")
+                await memory_manager.memorize_messages(to_memorize_messages)
+            except Exception as e:
+                logger.error(f"记忆操作失败: {e}")
 
         return {"memorized_messages": state.memorized_messages + to_memorize_messages}
 
@@ -124,7 +118,10 @@ class HomeAssistantLLMControllerLangGraph:
                 "non_sensor_data": entity_data.get("non_sensor_data", {}),
             }
 
-        self.command_parser.update_entity_data(state.entity_data.get("non_sensor_data", {}))
+        # CommandParser 期望直接传入 non_sensor_data，而不是包含它的 entity_data
+        self.command_parser.update_entity_data(
+            {"non_sensor_data": state.entity_data.get("non_sensor_data", {})}
+        )
 
         return {"entity_data": state.entity_data}
 
@@ -138,10 +135,15 @@ class HomeAssistantLLMControllerLangGraph:
         user_message = last_message.get("content", "")
         parsed_result = self.command_parser.parse_and_execute_command(user_message)
 
+        # 记录解析结果
+        logger.info(f"命令解析结果: {parsed_result}")
+
         parsed_command = {
             "message": parsed_result,
             "should_execute": "成功执行" in parsed_result,
         }
+
+        logger.info(f"是否应该执行命令: {parsed_command['should_execute']}")
 
         return {"parsed_command": parsed_command}
 
@@ -344,14 +346,16 @@ class HomeAssistantLLMControllerLangGraph:
         return "\n".join(overview)
 
     async def process_home_assistant_message(
-        self, message: str, history: list[tuple[str, str]] | None = None
+        self, message: str, history: list[tuple[str, str]] | list[dict[str, str]] | None = None
     ) -> str:
         """
         处理Home Assistant相关消息
 
         Args:
             message: 用户消息
-            history: 历史对话，格式为 [(user_msg, assistant_msg), ...]
+            history: 历史对话，支持两种格式：
+                - 元组格式: [(user_msg, assistant_msg), ...]
+                - 字典格式: [{"role": "user", "content": "..."}, ...]
 
         Returns:
             响应消息
@@ -365,15 +369,21 @@ class HomeAssistantLLMControllerLangGraph:
             >>> print(response)
             "好的，我来帮您打开客厅灯。"
         """
+        logger.info(f"接收到用户输入: {message[:100]}...")
         logger.info(f"开始处理Home Assistant消息: {message[:100]}...")
         start_time = datetime.now()
 
         try:
             messages = []
             if history:
-                for user_msg, assistant_msg in history:
-                    messages.append({"role": "user", "content": user_msg})
-                    messages.append({"role": "assistant", "content": assistant_msg})
+                for h in history:
+                    if isinstance(h, dict) and "role" in h and "content" in h:
+                        # 字典格式: {"role": "user/assistant", "content": "..."}
+                        messages.append(h)
+                    elif isinstance(h, (tuple, list)) and len(h) >= 2:
+                        # 元组格式: (user_msg, assistant_msg)
+                        messages.append({"role": "user", "content": h[0]})
+                        messages.append({"role": "assistant", "content": h[1]})
 
             messages.append({"role": "user", "content": message})
             logger.debug(f"构建的消息历史包含 {len(messages)} 条消息")

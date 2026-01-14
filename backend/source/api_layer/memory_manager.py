@@ -42,6 +42,8 @@ class MemoryManager:
 
             if qwen_api_key:
                 # 使用 Qwen API
+                # 注意: Qwen API 与 MemU 的 JSON 响应要求可能存在兼容性问题
+                # 如果遇到 JSON 解析错误，考虑使用 OpenAI API
                 llm_profiles = {
                     "default": {
                         "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
@@ -120,14 +122,16 @@ class MemoryManager:
                 temp_file_path = f.name
 
             try:
-                # 添加超时保护（15秒）
+                # 添加超时保护（5秒）
+                # 注意：Qwen API 与 MemU 的 JSON 响应要求可能存在兼容性问题
+                # 如果经常超时，建议使用 OpenAI API
                 result = await asyncio.wait_for(
                     self.memory.memorize(
                         resource_url=temp_file_path,
                         modality="conversation",
                         user={"user_id": os.environ.get("MEMU_USER_ID", "user001")},
                     ),
-                    timeout=15.0,
+                    timeout=5.0,
                 )
                 logger.info(f"成功记忆对话，结果: {result}")
                 return {
@@ -178,7 +182,7 @@ class MemoryManager:
             return ""
 
         try:
-            # 添加超时保护（10秒）
+            # 添加超时保护（5秒）
             result = await asyncio.wait_for(
                 self.memory.retrieve(
                     queries=[{"role": "user", "content": {"text": query}}],
@@ -186,7 +190,7 @@ class MemoryManager:
                     if os.environ.get("MEMU_USER_ID")
                     else None,
                 ),
-                timeout=10.0,
+                timeout=5.0,
             )
 
             # 处理检索结果

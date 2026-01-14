@@ -83,12 +83,21 @@ class CommandParser:
         ]
 
         single_patterns = [
+            # Light相关模式（包含"灯泡"的，优先匹配）
+            (r"打开\s*灯泡", "light", "turn_on"),
+            (r"关闭\s*灯泡", "light", "turn_off"),
+            (r"打开\s*(.+?)灯泡", "light", "turn_on"),
+            (r"关闭\s*(.+?)灯泡", "light", "turn_off"),
             (r"打开\s*(.+?)灯", "light", "turn_on"),
             (r"关闭\s*(.+?)灯", "light", "turn_off"),
+            (r"开灯泡", "light", "turn_on"),
+            (r"关灯泡", "light", "turn_off"),
             (r"开灯", "light", "turn_on"),
             (r"关灯", "light", "turn_off"),
+            # Switch相关模式（明确包含"开关"的）
             (r"打开\s*(.+?)开关", "switch", "turn_on"),
             (r"关闭\s*(.+?)开关", "switch", "turn_off"),
+            # 通用开关模式（最后匹配）
             (r"开启\s*(.+?)", "switch", "turn_on"),
             (r"关闭\s*(.+?)", "switch", "turn_off"),
         ]
@@ -129,6 +138,36 @@ class CommandParser:
             friendly_name = entity.get("friendly_name", "").lower()
             if device_name.lower() in friendly_name:
                 return self.call_home_assistant_service(entity.get("entity_id"), service)
+
+        # 如果设备名匹配失败但设备列表只有一个，尝试直接控制
+        if len(entities) == 1:
+            entity_id = entities[0].get("entity_id")
+            return self.call_home_assistant_service(entity_id, service)
+
+        # 如果设备名是通用词（如"灯泡"），尝试智能匹配
+        if device_name and device_name in ["灯泡", "灯", "电灯", "照明"]:
+            # 查找包含"灯"或"light"的设备
+            for entity in entities:
+                friendly_name = entity.get("friendly_name", "").lower()
+                entity_id = entity.get("entity_id", "")
+                if (
+                    "灯" in friendly_name
+                    or "light" in entity_id.lower()
+                    or "bulb" in entity_id.lower()
+                ):
+                    return self.call_home_assistant_service(entity_id, service)
+
+        # 如果设备名是空的（比如"开灯"/"关灯"命令），尝试查找默认设备
+        if not device_name and entities:
+            # 优先查找包含"灯"或"light"的设备
+            for entity in entities:
+                friendly_name = entity.get("friendly_name", "").lower()
+                entity_id = entity.get("entity_id", "")
+                if "灯" in friendly_name or "light" in entity_id.lower():
+                    return self.call_home_assistant_service(entity_id, service)
+            # 如果没有找到，就用第一个设备
+            return self.call_home_assistant_service(entities[0].get("entity_id"), service)
+
         return "未找到匹配的设备控制指令或设备不存在"
 
     def _try_match_by_entity_name(self, non_sensor_data: dict | None, command_text: str) -> str:

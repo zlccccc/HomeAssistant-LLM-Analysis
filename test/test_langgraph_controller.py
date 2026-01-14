@@ -631,7 +631,7 @@ class TestSaveAnalysisResults:
 class TestMemoryMessages:
     """Test _memory_messages node"""
 
-    def test_memory_messages_with_sync_context(self, mock_hass_manager):
+    async def test_memory_messages_with_sync_context(self, mock_hass_manager):
         """Test memory messages in synchronous context"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
@@ -647,13 +647,13 @@ class TestMemoryMessages:
                 memorized_messages=[],
             )
 
-            result = controller._memory_messages(state)
+            result = await controller._memory_messages(state)
 
             # LangGraph 节点返回状态更新的字典
             assert "memorized_messages" in result
             assert len(result["memorized_messages"]) == 2
 
-    def test_memory_messages_skips_already_memorized(self, mock_hass_manager):
+    async def test_memory_messages_skips_already_memorized(self, mock_hass_manager):
         """Test memory messages skips already memorized messages"""
         mock_hass_manager.entity_data = {"non_sensor_data": {}, "sensor_data": {}}
         with patch(
@@ -667,7 +667,7 @@ class TestMemoryMessages:
                 memorized_messages=[existing_message],
             )
 
-            result = controller._memory_messages(state)
+            result = await controller._memory_messages(state)
 
             # LangGraph 节点返回状态更新的字典
             assert "memorized_messages" in result
@@ -791,14 +791,9 @@ class TestProcessHomeAssistantMessage:
                 {"role": "assistant", "content": "I'm doing well"},
             ]
 
-            # Note: The current implementation expects tuple format, so this might fail
-            # but the test documents current behavior
-            try:
-                response = await controller.process_home_assistant_message("good", history)
-                assert response is not None
-            except Exception:
-                # Expected to fail with current implementation
-                assert True  # Test documents the limitation
+            # The implementation now supports both tuple and dict formats
+            response = await controller.process_home_assistant_message("good", history)
+            assert response is not None
 
     @pytest.mark.asyncio
     async def test_process_message_with_none_entity_data(self, mock_hass_manager):

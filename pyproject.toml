@@ -83,7 +83,7 @@ filterwarnings = [
 target-version = "py313"
 line-length = 100
 indent-width = 4
-src = ["backend", "frontend", "test", "analyze_entities.py"]
+src = ["backend", "frontend", "frontend/tools", "test"]
 
 [tool.ruff.lint]
 select = [

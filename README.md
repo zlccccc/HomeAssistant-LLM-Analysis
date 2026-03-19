@@ -41,6 +41,9 @@ cd HomeAssistant-LLM-Analysis
 # 安装依赖
 uv sync --extra dev
 
+# 如需语音播放功能
+uv sync --extra dev --extra speech
+
 # 配置环境变量
 cp .env.example .env
 # 编辑 .env 文件，填入你的配置
@@ -63,6 +66,7 @@ QWEN_MODEL=qwen-flash
 # 记忆功能（可选）
 USE_MEMORY_MESSAGES=true
 MEMU_USER_ID=user001
+MEMU_USER_NAME=master
 
 # 输出目录
 OUTPUT_DIR=output
@@ -76,6 +80,9 @@ uv run python frontend/ha_chat_assistant.py
 
 # 或使用开发脚本
 ./scripts/dev.sh run
+
+# 实体分析工具
+./scripts/dev.sh analyze
 ```
 
 访问 `http://localhost:7860` 使用 Gradio 界面。
@@ -112,40 +119,46 @@ uv run python frontend/ha_chat_assistant.py
 
 ```
 HomeAssistant-LLM-Analysis/
-├── frontend/                    # 前端层
-│   ├── ha_chat_assistant.py    # Gradio UI 入口
+├── frontend/                        # 前端层
+│   ├── ha_chat_assistant.py         # Gradio UI 入口
+│   ├── tools/
+│   │   └── analyze_entities.py      # 实体分析工具
 │   └── api_layer/
-│       └── qwen_speech_model.py # 语音模型
+│       └── qwen_speech_model.py     # 语音模型（ASR/TTS）
 │
-├── backend/                    # 后端层
+├── backend/                         # 后端层
 │   └── source/
-│       ├── home_assistant_llm_controller_langgraph.py  # LangGraph 控制器
-│       ├── command_parser.py    # 命令解析器
-│       └── api_layer/
-│           ├── home_assistant.py    # Home Assistant API
-│           ├── llm_manager.py       # LLM 管理器
-│           └── memory_manager.py    # 记忆管理
+│       ├── api_layer/               # 外部 API 客户端
+│       │   ├── home_assistant.py    # Home Assistant API
+│       │   ├── llm_manager.py       # LLM 管理器
+│       │   └── memory_manager.py    # MemU 记忆客户端
+│       ├── services/                # 业务服务层
+│       │   ├── command_parser.py    # 命令解析器
+│       │   ├── entity_analyzer.py   # 实体分析
+│       │   └── langgraph_controller.py  # LangGraph 控制器
+│       ├── ui_service/              # UI 业务逻辑层
+│       │   ├── chat_service.py      # 对话业务逻辑
+│       │   └── entity_service.py    # 实体业务逻辑
+│       └── infrastructure/
+│           └── utils.py             # 共享工具函数
 │
-├── test/                       # 测试套件
-│   ├── conftest.py             # 测试配置
-│   ├── test_home_assistant.py
-│   ├── test_llm_manager.py
-│   ├── test_command_parser.py
-│   └── ...
+├── test/                            # 测试套件
+│   ├── unit/                        # 单元测试（无外部依赖）
+│   ├── integration/                 # 集成测试
+│   ├── scripts/                     # 手动测试脚本
+│   └── conftest.py                  # 共享测试 fixtures
 │
-├── scripts/                    # 开发脚本
-│   ├── dev.sh                  # 开发助手
-│   ├── test.sh                 # 测试运行器
-│   └── format.sh               # 代码格式化
+├── scripts/                         # 开发脚本
+│   └── dev.sh                       # 开发助手（测试/格式化/Lint）
 │
-├── docs/                       # 文档
-│   ├── README.md               # 项目概览
-│   ├── SETUP.md                # 安装指南
-│   └── README_MEMU.md          # MemU 记忆系统
+├── docs/                            # 文档
+│   ├── README.md                    # 项目概览
+│   ├── SETUP.md                     # 安装指南
+│   └── README_MEMU.md               # MemU 记忆系统
 │
-├── pyproject.toml              # 项目配置
-├── .pre-commit-config.yaml     # Pre-commit 钩子
-└── CLAUDE.md                   # AI 编码助手指南
+├── pyproject.toml                   # 项目配置
+├── .pre-commit-config.yaml          # Pre-commit 钩子
+└── CLAUDE.md                        # AI 编码助手指南
 ```
 
 ## 工作原理

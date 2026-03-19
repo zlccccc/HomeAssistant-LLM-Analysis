@@ -65,12 +65,12 @@ if [ "$FORMATTER" = "ruff" ]; then
     # Run ruff check with auto-fix
     if [ "$CHECK_ONLY" = true ]; then
         echo "Checking code with ruff..."
-        uv run ruff check backend/ frontend/ test/ analyze_entities.py
-        uv run ruff format --check backend/ frontend/ test/ analyze_entities.py
+        uv run ruff check backend/ frontend/ test/ frontend/tools/analyze_entities.py
+        uv run ruff format --check backend/ frontend/ test/ frontend/tools/analyze_entities.py
     else
         echo "Fixing code with ruff..."
-        uv run ruff check --fix backend/ frontend/ test/ analyze_entities.py
-        uv run ruff format backend/ frontend/ test/ analyze_entities.py
+        uv run ruff check --fix backend/ frontend/ test/ frontend/tools/analyze_entities.py
+        uv run ruff format backend/ frontend/ test/ frontend/tools/analyze_entities.py
         echo -e "${GREEN}✓ Code formatted with ruff${NC}"
     fi
 elif [ "$FORMATTER" = "black" ]; then
@@ -78,10 +78,10 @@ elif [ "$FORMATTER" = "black" ]; then
 
     if [ "$CHECK_ONLY" = true ]; then
         echo "Checking code with black..."
-        uv run black --check backend/ frontend/ test/ analyze_entities.py
+        uv run black --check backend/ frontend/ test/ frontend/tools/analyze_entities.py
     else
         echo "Formatting code with black..."
-        uv run black backend/ frontend/ test/ analyze_entities.py
+        uv run black backend/ frontend/ test/ frontend/tools/analyze_entities.py
         echo -e "${GREEN}✓ Code formatted with black${NC}"
     fi
 fi
@@ -90,9 +90,9 @@ fi
 if [ "$FORMATTER" = "black" ]; then
     echo "Sorting imports with isort..."
     if [ "$CHECK_ONLY" = true ]; then
-        uv run ruff check --select I --check backend/ frontend/ test/ analyze_entities.py
+        uv run ruff check --select I --check backend/ frontend/ test/ frontend/tools/analyze_entities.py
     else
-        uv run ruff check --select I --fix backend/ frontend/ test/ analyze_entities.py
+        uv run ruff check --select I --fix backend/ frontend/ test/ frontend/tools/analyze_entities.py
     fi
 fi
 

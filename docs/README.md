@@ -10,23 +10,25 @@
 graph TD
     subgraph 应用入口层
         A[ha_chat_assistant.py<br>主应用入口与Gradio UI]
-        C[analyze_entities.py<br>实体分析工具]
+        C[frontend/tools/analyze_entities.py<br>实体分析工具]
     end
   
     subgraph 业务逻辑层
-        G[home_assistant_llm_controller_langgraph.py<br>基于LangGraph的控制器]
-        B6[command_parser.py<br>命令解析器]
+        G[services/langgraph_controller.py<br>基于LangGraph的控制器]
+        B6[services/command_parser.py<br>命令解析器]
+        UI1[ui_service/chat_service.py<br>聊天业务逻辑]
+        UI2[ui_service/entity_service.py<br>实体业务逻辑]
     end
-  
+
     subgraph API对接层
-        B1[api_layer/home_assistant.py<br>Home Assistant API对接]
-        B2[api_layer/memory_manager.py<br>记忆管理模块]
-        B3[api_layer/qwen_speech_model.py<br>语音API对接]
-        B4[api_layer/llm_manager.py<br>大模型API对接]
+        B1[backend/source/api_layer/home_assistant.py<br>Home Assistant API对接]
+        B2[backend/source/api_layer/memory_manager.py<br>记忆管理模块]
+        B3[frontend/api_layer/qwen_speech_model.py<br>语音API对接]
+        B4[backend/source/api_layer/llm_manager.py<br>大模型API对接]
     end
-  
+
     subgraph 基础服务层
-        B7[base_layer/utils.py<br>工具函数和日志系统]
+        B7[infrastructure/utils.py<br>工具函数和日志系统]
         B8[.env<br>环境变量配置]
     end
   
@@ -84,11 +86,13 @@ graph TD
 1. **应用入口层**
 
    - `ha_chat_assistant.py`: 主应用入口，提供Gradio UI界面，包含设备控制、传感器数据查看和聊天对话等多个功能选项卡
-   - `analyze_entities.py`: 实体分析工具，用于批量分析Home Assistant实体并生成详细报告
+   - `frontend/tools/analyze_entities.py`: 实体分析工具，用于批量分析Home Assistant实体并生成详细报告
 2. **业务逻辑层**
 
-   - `home_assistant_llm_controller_langgraph.py`: 基于LangGraph的核心控制器，采用状态机模式管理对话流程，协调各API接口间的调用，处理实体分析、用户消息处理逻辑，负责命令解析与执行，并集成记忆功能
-   - `command_parser.py`: 命令解析器，负责解析和执行控制指令，实现基于正则表达式的指令匹配和设备控制，由控制器调用
+   - `services/langgraph_controller.py`: 基于LangGraph的核心控制器，采用状态机模式管理对话流程，协调各API接口间的调用，处理实体分析、用户消息处理逻辑，负责命令解析与执行，并集成记忆功能
+   - `services/command_parser.py`: 命令解析器，负责解析和执行控制指令，实现基于正则表达式的指令匹配和设备控制，由控制器调用
+   - `ui_service/chat_service.py`: 聊天业务逻辑层，处理 Gradio UI 与核心服务之间的聊天交互
+   - `ui_service/entity_service.py`: 实体业务逻辑层，处理设备和传感器数据查询、控制操作
 3. **API对接层**
 
    - `home_assistant.py`: Home Assistant API对接接口，负责与Home Assistant系统交互，获取实体数据和设备信息，新增MCP客户端管理功能
@@ -151,16 +155,21 @@ graph TD
 
 ### 依赖安装
 
-文本依赖：
-
 ```shell
-pip install requests openpyxl pandas gradio pydantic langgraph python-dotenv langchain-mcp-adapters langchain-openai
+uv sync --extra dev
 ```
 
-语音与记忆依赖：
+如需语音播放功能，还需要安装语音依赖：
 
 ```shell
-pip install pyaudio pygame playsound pydub memu-py
+uv sync --extra dev --extra speech
+```
+
+语音功能同时需要系统级依赖：
+
+```shell
+# Ubuntu/Debian
+sudo apt-get install portaudio19-dev python3-pyaudio
 ```
 
 ### 使用方法
@@ -185,41 +194,47 @@ cp .env.example .env
    - `USE_MEMORY_MESSAGES`: 是否启用记忆功能 (true/false)
    - `MEMU_API_KEY`: MemU API密钥
    - `MEMU_USER_ID`: MemU用户ID
+   - `MEMU_USER_NAME`: MemU用户名
    - `MEMU_AGENT_ID`: MemU助手ID
 3. 运行应用
 
 ```shell
 # 运行实体分析工具
-python analyze_entities.py
+uv run python frontend/tools/analyze_entities.py
 
 # 运行主应用（带UI界面）
-python ha_chat_assistant.py
+uv run python frontend/ha_chat_assistant.py
 ```
 
 ### 项目结构
 
 ```
-api/
-├── ha_chat_assistant.py     # 主应用入口
-├── analyze_entities.py      # 实体分析工具
-├── source/                  # 源代码目录
-│   ├── __init__.py
-│   ├── api_layer/           # API对接层
-│   │   ├── __init__.py
-│   │   ├── home_assistant.py    # Home Assistant API对接
-│   │   ├── llm_manager.py       # 大模型API对接
-│   │   ├── memory_manager.py    # 记忆管理模块
-│   │   └── qwen_speech_model.py # 语音API对接
-│   ├── base_layer/          # 基础服务层
-│   │   ├── __init__.py
-│   │   └── utils.py         # 工具函数和日志系统
-│   ├── home_assistant_llm_controller_langgraph.py  # 基于LangGraph的业务逻辑控制器
-│   └── command_parser.py    # 命令解析器
-├── logs/                    # 日志文件目录
-├── output/                  # 输出文件目录
-├── images/                  # 图片资源目录
-├── .env.example             # 环境变量配置示例
-└── .env                     # 环境变量配置(需自行创建)
+frontend/
+├── ha_chat_assistant.py         # 主应用入口（Gradio UI）
+├── tools/
+│   └── analyze_entities.py      # 实体分析工具
+└── api_layer/
+    └── qwen_speech_model.py     # 语音API对接
+
+backend/source/
+├── api_layer/                   # API对接层
+│   ├── home_assistant.py        # Home Assistant API对接
+│   ├── llm_manager.py           # 大模型API对接
+│   └── memory_manager.py        # 记忆管理模块
+├── services/                    # 核心服务层
+│   ├── langgraph_controller.py  # 基于LangGraph的控制器
+│   ├── command_parser.py        # 命令解析器
+│   └── entity_analyzer.py       # 实体分析服务
+├── ui_service/                  # UI业务逻辑层
+│   ├── chat_service.py          # 聊天业务逻辑
+│   └── entity_service.py        # 实体业务逻辑
+└── infrastructure/              # 基础服务层
+    └── utils.py                 # 工具函数和日志系统
+
+logs/                            # 日志文件目录
+output/                          # 输出文件目录
+.env.example                     # 环境变量配置示例
+.env                             # 环境变量配置(需自行创建)
 ```
 
 ### 最佳实践

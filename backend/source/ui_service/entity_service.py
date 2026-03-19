@@ -8,6 +8,7 @@ from typing import Any
 
 from backend.source.api_layer.home_assistant import hass_manager
 from backend.source.infrastructure.utils import logger
+from backend.source.services.command_parser import CommandParser
 from backend.source.services.entity_analyzer import entity_analyzer
 
 
@@ -171,9 +172,12 @@ class EntityService:
                 current_state = entity.get("state", "未知")
                 new_state = "off" if current_state == "on" else "on"
 
-                success_message = hass_manager.call_home_assistant_service(
-                    entity_id, f"turn_{new_state}"
+                parser = CommandParser(
+                    entity_data=hass_manager.entity_data,
+                    url=hass_manager.url,
+                    headers=hass_manager.headers,
                 )
+                success_message = parser.call_home_assistant_service(entity_id, f"turn_{new_state}")
 
                 if "成功" in success_message:
                     hass_manager.update_entity_data()

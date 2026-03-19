@@ -87,8 +87,9 @@ class TestEntityService:
         assert status["state"] == "on"
         assert status["last_updated"] == "2024-01-01T00:00:00"
 
+    @patch("backend.source.ui_service.entity_service.CommandParser")
     @patch("backend.source.ui_service.entity_service.hass_manager")
-    def test_control_device_success(self, mock_hass):
+    def test_control_device_success(self, mock_hass, mock_parser_cls):
         """测试控制设备 - 成功"""
         entity = {
             "entity_id": "light.living_room",
@@ -101,7 +102,7 @@ class TestEntityService:
             }
         }
         mock_hass.group_entities_by_name.return_value = {"客厅": [entity]}
-        mock_hass.call_home_assistant_service.return_value = "控制成功"
+        mock_parser_cls.return_value.call_home_assistant_service.return_value = "控制成功"
 
         service = EntityService()
         result = service.control_device("light", "客厅", "客厅吸顶灯")
@@ -110,8 +111,9 @@ class TestEntityService:
         assert "控制成功" in result["message"]
         assert result["new_state"] == "off"
 
+    @patch("backend.source.ui_service.entity_service.CommandParser")
     @patch("backend.source.ui_service.entity_service.hass_manager")
-    def test_control_device_api_failure(self, mock_hass):
+    def test_control_device_api_failure(self, mock_hass, mock_parser_cls):
         """测试控制设备 - API 返回失败"""
         entity = {
             "entity_id": "light.living_room",
@@ -124,7 +126,7 @@ class TestEntityService:
             }
         }
         mock_hass.group_entities_by_name.return_value = {"客厅": [entity]}
-        mock_hass.call_home_assistant_service.return_value = "控制失败：API错误"
+        mock_parser_cls.return_value.call_home_assistant_service.return_value = "控制失败：API错误"
 
         service = EntityService()
         result = service.control_device("light", "客厅", "客厅吸顶灯")

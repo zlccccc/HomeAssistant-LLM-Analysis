@@ -217,7 +217,7 @@ class HomeAssistantLLMControllerLangGraph:
                 if tools:
                     agent = self._create_react_agent(tools)
                     response_obj = await agent.ainvoke({"messages": to_invoke_messages})
-                    print(f"agent.ainvoke: {response_obj}")
+                    logger.debug(f"agent.ainvoke: {response_obj}")
                     response = self._extract_response_content(response_obj)
                 else:
                     response = llm_manager.call_openai_api(to_invoke_messages)

@@ -65,27 +65,27 @@ case "$1" in
 
     format)
         echo -e "${YELLOW}Formatting code...${NC}"
-        uv run ruff check --fix backend/ frontend/ test/ analyze_entities.py
-        uv run ruff format backend/ frontend/ test/ analyze_entities.py
+        uv run ruff check --fix backend/ frontend/ test/ frontend/tools/analyze_entities.py
+        uv run ruff format backend/ frontend/ test/ frontend/tools/analyze_entities.py
         echo -e "${GREEN}✓ Code formatted${NC}"
         ;;
 
     format-check)
         echo -e "${YELLOW}Checking code formatting...${NC}"
-        uv run ruff check backend/ frontend/ test/ analyze_entities.py
-        uv run ruff format --check backend/ frontend/ test/ analyze_entities.py
+        uv run ruff check backend/ frontend/ test/ frontend/tools/analyze_entities.py
+        uv run ruff format --check backend/ frontend/ test/ frontend/tools/analyze_entities.py
         echo -e "${GREEN}✓ Formatting check passed${NC}"
         ;;
 
     lint)
         echo -e "${YELLOW}Running linter...${NC}"
-        uv run ruff check backend/ frontend/ test/ analyze_entities.py
+        uv run ruff check backend/ frontend/ test/ frontend/tools/analyze_entities.py
         echo -e "${GREEN}✓ Lint check passed${NC}"
         ;;
 
     type-check)
         echo -e "${YELLOW}Running type checker...${NC}"
-        uv run mypy backend/ frontend/ analyze_entities.py
+        uv run mypy backend/ frontend/ frontend/tools/analyze_entities.py
         echo -e "${GREEN}✓ Type check passed${NC}"
         ;;
 
@@ -165,7 +165,7 @@ case "$1" in
 
     analyze)
         echo -e "${YELLOW}Running entity analysis...${NC}"
-        uv run python analyze_entities.py
+        uv run python frontend/tools/analyze_entities.py
         ;;
 
     help|--help|-h)

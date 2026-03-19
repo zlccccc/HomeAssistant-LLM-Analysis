@@ -1,65 +1,69 @@
-# Home Assistant LLM Analysis - Setup with uv
+# Setup
 
-This project uses `uv` for fast dependency management and virtual environment creation.
-
-## Setup
+## Quick Start
 
 1. **Install uv** (if not already installed):
    ```bash
-   pip install uv
-   # or
    curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
-2. **Create virtual environment**:
+2. **Install dependencies**:
    ```bash
-   uv venv
+   uv sync --extra dev
    ```
 
-   Note: uv automatically selects the best available Python version. If Python 3.13+ is available on your system, uv will use it. In this case, Python 3.14.0 was selected.
-
-3. **Install dependencies**:
-   Dependencies have already been installed in the virtual environment using:
+   For voice playback support, also install the speech extra:
    ```bash
-   # Install individual packages (what was done)
-   source .venv/bin/activate && uv pip install requests openpyxl pandas gradio pydantic python-dotenv 'httpx[socks]' langchain langchain-core langchain-openai langgraph langchain-mcp-adapters memu-py loguru
+   uv sync --extra dev --extra speech
    ```
 
-4. **Activate the environment**:
+3. **Configure environment**:
    ```bash
-   source .venv/bin/activate
-   # or run the provided script:
-   ./activate_env.sh
+   cp .env.example .env
+   # Edit .env and fill in your API keys and configuration
    ```
 
-## Project Structure
+4. **Run the application**:
+   ```bash
+   uv run python frontend/ha_chat_assistant.py
+   # or
+   ./scripts/dev.sh run
+   ```
 
-The project has been converted to use modern Python packaging with the following key files:
-- `pyproject.toml` - Project metadata and dependencies
-- `.venv/` - Virtual environment directory
-- `activate_env.sh` - Helper script to activate the environment
+## Environment Variables
 
-## Running the Application
+Edit `.env` with your values:
 
-After activating the virtual environment, you can run:
-
-- Main application: `python ha_chat_assistant.py`
-- Entity analyzer: `python analyze_entities.py`
+| Variable | Description |
+|----------|-------------|
+| `HA_URL` | Home Assistant URL |
+| `HA_TOKEN` | Home Assistant long-lived access token |
+| `QWEN_API_KEY` | Qwen API key |
+| `QWEN_API_BASE` | Qwen API base URL |
+| `QWEN_MODEL` | LLM model name |
+| `QWEN_ASR_MODEL` | Speech recognition model |
+| `QWEN_TTS_MODEL` | Text-to-speech model |
+| `OUTPUT_DIR` | Output directory path |
+| `HA_MCP_ENDPOINT` | MCP service endpoint |
+| `USE_MEMORY_MESSAGES` | Enable memory feature (`true`/`false`) |
+| `MEMU_API_KEY` | MemU API key |
+| `MEMU_USER_ID` | MemU user ID |
+| `MEMU_USER_NAME` | MemU user name |
+| `MEMU_AGENT_ID` | MemU agent ID |
 
 ## Audio Dependencies
 
-The optional audio dependencies (pyaudio, pygame, playsound, pydub) require system-level dependencies that need to be installed separately:
+Voice features require system-level packages:
 
 ```bash
-# On Ubuntu/Debian:
+# Ubuntu/Debian
 sudo apt-get install portaudio19-dev python3-pyaudio
-
-# Then install the Python packages:
-uv pip install pyaudio pygame pydub
 ```
 
-Note: `playsound` may not work on Linux systems. Use `pygame` or `pydub` for audio playback.
+Note: `playsound` may not work on Linux. The project uses `pygame` or `pydub` for audio playback.
 
-## Compatibility Note
+## Entity Analyzer
 
-With Python 3.14+, you may see warnings about Pydantic V1 compatibility. These are warnings only and shouldn't prevent the application from functioning. The core functionality of LangChain and related packages remains intact.
+```bash
+uv run python frontend/tools/analyze_entities.py
+```

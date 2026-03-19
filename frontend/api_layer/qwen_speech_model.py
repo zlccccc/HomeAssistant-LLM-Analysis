@@ -57,7 +57,6 @@ class QwenSpeechManager:
         """
         try:
             logger.info(f"开始语音识别，文件：{audio_file}")
-            time.time()
 
             # 检查文件是否存在
             audio_path = Path(audio_file)

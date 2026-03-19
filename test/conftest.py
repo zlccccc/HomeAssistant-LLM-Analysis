@@ -317,10 +317,12 @@ def pytest_configure(config):
 def pytest_collection_modifyitems(config, items):
     """Modify test collection to add markers automatically."""
     for item in items:
-        # Add markers based on test file names
-        if "integration" in str(item.fspath):
+        path_str = str(item.fspath)
+
+        # Add markers based on test directory
+        if "test/integration/" in path_str:
             item.add_marker(pytest.mark.integration)
-        elif "test_" in str(item.fspath):
+        elif "test/unit/" in path_str:
             item.add_marker(pytest.mark.unit)
 
         # Skip tests that require external services if not available
